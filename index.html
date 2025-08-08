@@ -1435,9 +1435,19 @@ window.addEventListener('resize', function() {
 // Patch rerenderAll to preserve scroll position (for mobile especially)
 const origRerenderAll = rerenderAll;
 window.rerenderAll = function() {
+  // Calculate if user was at the bottom *before* rerender
   const scrollY = window.scrollY;
+  const atBottom = (window.innerHeight + Math.ceil(window.scrollY)) >= (document.body.scrollHeight - 2);
+
   origRerenderAll.apply(this, arguments);
-  window.scrollTo(0, scrollY);
+
+  if (atBottom) {
+    // If user was at bottom, stay at the new bottom (no jump!)
+    window.scrollTo(0, document.body.scrollHeight);
+  } else {
+    // Otherwise, restore their previous scroll position
+    window.scrollTo(0, scrollY);
+  }
 };
 
 /*────────────────────────────────────────────
