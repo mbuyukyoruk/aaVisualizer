@@ -1,0 +1,1919 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Amino-acid Sequence Visualizer</title>
+
+  <!-- Fonts + tiny Tailwind utility bundle (pure CDN, no build) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+  <style>
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(24px);}
+      to   { opacity: 1; transform: translateY(0);}
+    }
+    .hero-anim { animation: fadeInUp 1s cubic-bezier(.4,1.6,.3,1) both; }
+  /* ─────────────────────────────────────────────
+     ✦  COLOUR SYSTEM  (light / dark via CSS vars)
+     ───────────────────────────────────────────── */
+  :root{
+    --bg-gradient: linear-gradient(to bottom,#f3f4f6,#14b8a6);
+    --bg:          #f6f7fb;
+    --panel:       #ffffff;
+    --text:        #374151;
+    --muted:       #6b7280;
+    --chip:        #f3f4f6;
+    --ring:        #e5e7eb;
+    --shadow:      0 10px 24px rgba(0,0,0,.08);
+    --accent:      #14b8a6;
+    --amber:       #f59e0b;
+    --blue:        #3b82f6;
+    --purple:      #a78bfa;
+    --link-color:  #4f46e5;
+    --link-hover:  #0d9488;
+  }
+  [data-theme="dark"]{
+    --bg-gradient: linear-gradient(to bottom,#1f2937,#065f46);
+    --bg:          #1f2937;
+    --panel:       #111922;
+    --text:        #e5e7eb;
+    --muted:       #9ca3af;
+    --chip:        #1b2633;
+    --ring:        #374151;
+    --shadow:      0 10px 30px rgba(0,0,0,.35);
+    --accent:      #5eead4;
+    --link-color:  #5eead4;
+    --link-hover:  #99f6e4;
+  }
+  :root{--chip-border:1px solid var(--ring);}
+
+  /* ─────────────────── Layout & typography */
+  *,*::before,*::after{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; background:var(--bg-gradient);
+    display:flex; flex-direction:column;
+    font:15px/1.55 'Inter',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial;
+    color:var(--text);
+  }
+  .main{flex:1}
+  .wrap{max-width:1080px;margin:32px auto;padding:0 16px}
+  .card{
+    background:var(--panel);
+    border:var(--chip-border);
+    border-radius:28px;
+    box-shadow:var(--shadow);
+    padding:22px;
+  }
+  [data-theme="dark"] .card, [data-theme="dark"] .tool-desc {
+    background: rgba(23, 25, 34, 0.78);
+    backdrop-filter: blur(8px);
+  }
+  h1{margin:0 0 8px}
+  .sub{color:var(--muted);margin-bottom:14px}
+
+  /* ─────────────────── Toolbars & controls */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0 8px}
+  .toolbar select{
+    appearance:none; border:var(--chip-border); background:var(--chip); color:var(--text);
+    padding:8px 10px; border-radius:10px; font-weight:600; cursor:pointer;
+  }
+
+  .toolbar-row{display:flex;gap:10px;align-items:center;margin:0 0 14px}
+  .toolbar-row label{
+    display:inline-flex;gap:8px;align-items:center;
+    border:var(--chip-border); background:var(--chip); color:var(--text);
+    padding:8px 10px; border-radius:10px; font-weight:600; cursor:pointer;
+  }
+  .toolbar-row input[type=checkbox]{
+    accent-color:var(--accent); width:16px; height:16px; cursor:pointer;
+  }
+
+  .motifbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+  .motifbar input[type=text]{
+    min-width:260px; background:var(--chip); color:var(--text);
+    border:var(--chip-border); border-radius:10px; padding:8px 10px;
+    font:600 14px/1.2 ui-monospace,Menlo,Consolas,monospace;
+  }
+  .motifbar button{
+    appearance:none; border:var(--chip-border); background:var(--chip); color:var(--text);
+    padding:8px 10px; border-radius:10px; font-weight:700; cursor:pointer;
+  }
+  .motifbar .err{color:#ff9aa2; font-weight:700}
+
+  /* legend chips */
+  .legend{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0 2px}
+  .chip{
+    background:var(--chip); border:var(--chip-border); padding:4px 8px;
+    border-radius:999px; display:inline-flex; gap:6px; align-items:center;
+  }
+  .dot{width:10px;height:10px;border-radius:50%}
+  .legend .label{font-weight:700}
+  .legend .res{
+    color:var(--muted); font:600 12px ui-monospace,Menlo,Consolas,monospace;
+    letter-spacing:.2px;
+  }
+
+  /* form layout */
+  .form{display:grid;grid-template-columns:140px 1fr auto;gap:10px;align-items:center;margin:14px 0 6px}
+  .form input[type=text], .form textarea{
+    width:100%; background:var(--chip); color:var(--text);
+    border:var(--chip-border); border-radius:10px; padding:8px 10px;
+    font:14px/1.4 ui-monospace,Menlo,Consolas,monospace;
+  }
+  .form textarea{height:70px;resize:vertical}
+  .form button{
+    appearance:none; border:var(--chip-border); background:var(--chip); color:var(--text);
+    padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:700; height:100%;
+  }
+  .row-help{
+    color:var(--muted); font-size:12px; margin-top:-4px; grid-column:1/-1;
+  }
+  .input-toggle{
+    grid-column:1/-1; display:flex; gap:10px; align-items:center; margin-top:4px;
+  }
+  .input-toggle label{
+    display:inline-flex; gap:6px; align-items:center;
+    border:var(--chip-border); background:var(--chip); color:var(--text);
+    padding:6px 10px; border-radius:10px; font-weight:600; cursor:pointer;
+  }
+  .file-row{
+    grid-column:1/-1; display:none; gap:10px; align-items:center;
+    grid-template-columns:1fr auto;
+  }
+  .file-row input[type=file]{
+    background:var(--chip); color:var(--text);
+    border:1px dashed var(--ring); border-radius:10px;
+    padding:10px; width:100%;
+  }
+
+  /* ─────────────────── Sequence boxes */
+  .seqbox{
+    margin-top:14px; border:var(--chip-border);
+    border-radius:12px; overflow:visible; background:var(--panel);
+  }
+  .seqbox.dragging{
+    opacity:.95; box-shadow:0 16px 40px rgba(0,0,0,.45);
+  }
+  .seqbox.placeholder{
+    border:2px dashed var(--accent); background:transparent; opacity:.85;
+  }
+  .seqhdr{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 10px;
+    background:linear-gradient(0deg,transparent,rgba(0,0,0,.04));
+    border-bottom:var(--chip-border);
+  }
+  .title{font-weight:700; display:flex; gap:8px; align-items:center}
+  .len{color:var(--muted); font-weight:600; font-size:12px}
+
+  .actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .actions button{
+    appearance:none; border:var(--chip-border); background:var(--chip); color:var(--text);
+    padding:6px 10px; border-radius:10px; cursor:pointer; font-weight:600;
+  }
+  .drag-handle{
+    cursor:grab; user-select:none; font-weight:900; font-size:16px; line-height:1;
+    border:var(--chip-border); background:var(--chip); color:var(--text);
+    padding:6px 8px; border-radius:8px;
+  }
+  .drag-handle:active{cursor:grabbing}
+
+  /* ─────────────────── AA cells (Fix #1: grid spans full width) */
+  .seqbox {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .ruler,
+  .seq {
+    display: grid;
+    grid-template-columns: repeat(50, 1fr);
+    gap: 2px;
+    padding: 0 6px;        /* ← inset both by the same amount */
+    box-sizing: border-box;
+  }
+
+  .ruler,
+  .seqrow {
+    margin-bottom: 6px;
+  }
+
+  .tick {
+    width: auto;           /* let the grid cell define it */
+    text-align: center;
+    font: 600 11px ui-monospace, Menlo, Consolas, monospace;
+    color: var(--muted);
+  }
+  .tick.n10 strong {
+    font-weight: 700;
+  }
+
+  .aa {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;
+    border-radius: 4px;
+    font: 700 13px/1 ui-monospace, Menlo, Consolas, monospace;
+    background: var(--chip);
+  }
+  .aa.pad { color: #999; }
+  .aa.gap {
+    font-weight: 400;
+    font-size: 12px;
+    color: #555;
+    background: transparent;
+  }
+
+  /* selection, motif hits, mutations */
+  .aa.sel { outline: 2px solid var(--blue); }
+  .aa.hit { outline: 2px solid var(--amber); }
+  .aa.mut { outline: 2px solid var(--purple); }
+  /* ─────────────────── Toggle switch (Fix #2: knob always white) */
+  .toggle-switch{
+    position:relative; display:inline-block;
+    width:60px; height:34px; overflow:hidden;
+  }
+  .toggle-switch input{opacity:0; width:0; height:0}
+  .slider{
+    position:absolute; cursor:pointer;
+    top:0; left:0; right:0; bottom:0;
+    background:#ccc; transition:.4s; border-radius:34px;
+  }
+  .slider:before{
+    position:absolute; content:"☀️";
+    height:26px; width:26px;
+    left:4px; bottom:4px;
+    background:#fff; /* always white */
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; border-radius:50%; transition:.4s, background .4s;
+    color:#000;
+  }
+  input:checked + .slider{ background:#0d9488 }
+  input:checked + .slider:before{
+    content:"🌙";
+    transform:translateX(26px);
+    /* still white so it never “bleeds” into the dark track */
+    background:#fff;
+    color:#065f46;
+  }
+
+  /* ─────────────────── Export bar fixes */
+  .exportbar{
+    display:flex;
+    gap:10px;
+    margin-top:14px;
+  }
+  .exportbar button{
+    appearance:none; border:var(--chip-border); background:var(--chip);
+    color:var(--text); padding:8px 10px; border-radius:10px;
+    font-weight:600; cursor:pointer;
+  }
+  /* visually “grey-out” disabled export buttons */
+  .exportbar button:disabled {
+    opacity: 0.45;           /* fade */
+    cursor: not-allowed;     /* typical disabled cursor */
+    filter: grayscale(60%);  /* optional – desaturate the colour */
+    pointer-events: none;    /* belt-and-braces: ignore clicks in old browsers */
+  }
+
+  button:not(#toggle-desc-btn):not(#example-seq-link):hover {
+    box-shadow: 0 0 0 1px var(--accent), 0 2px 18px rgba(37,99,235,0.13);
+    filter: brightness(1.05);
+    transition: box-shadow 0.15s, filter 0.12s;
+  }
+
+  .aa.hit {
+    box-shadow: 0 0 12px 1px #f59e0b, 0 0 0 2px #fff;
+    transition: box-shadow 0.25s;
+    animation: motif-glow 2s infinite alternate;
+  }
+  @keyframes motif-glow {
+    0% { box-shadow: 0 0 4px 0 #f59e0b; }
+    100% { box-shadow: 0 0 16px 2px #f59e0b; }
+  }
+
+  .seqbox:hover {
+    box-shadow: 0 4px 22px rgba(16,185,129,.15), 0 0 0 2px var(--accent);
+    transform: translateY(-3px) scale(1.015);
+    transition: box-shadow 0.15s, transform 0.12s;
+  }
+
+  /* ─────────────────── Footer */
+  .footer{
+    margin-top:auto;               /* keeps it at the very bottom */
+    padding:18px 16px 24px;
+    display:flex;                  /* perfect centring */
+    justify-content:center;
+    align-items:center;
+    gap:4px;                       /* tiny space between words */
+    font-size:13px;
+    color:var(--muted);
+  }
+  .footer a{
+    color:var(--link-color);
+    text-decoration:none;          /* ← no underline */
+    font-weight:600;
+  }
+  .footer a:hover{color:var(--link-hover);}
+
+  .tool-desc {
+    background: var(--panel);
+    border-radius: 10px;
+    font-size: 15px;
+    color: var(--text);
+    margin-bottom: 18px;
+    line-height: 1.7;
+    border: var(--chip-border);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+    text-align: justify;
+  }
+  .tool-desc b { color: var(--accent); }
+
+  /* ─────────────────── Selection panel */
+
+  .selbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;            /* space between the text and the buttons */
+    margin-top: 12px;     /* a little breathing room above */
+  }
+
+  .selinfo {
+    font-weight: 600;     /* make “WT: 1–40…” stand out */
+    color: var(--text);
+  }
+
+  .selbar button {
+    appearance: none;
+    border: var(--chip-border);
+    background: var(--chip);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .error {
+    color: #dc2626;   /* red-600 */
+    font-weight: 600;
+    margin-top: 0.5em;
+  }
+
+  .empty {
+    background: linear-gradient(90deg, #f0f9ff 0%, #e0f7fa 100%);
+    color: #2563eb;
+    font-size: 1.13em;
+    font-weight: 600;
+    border: 2px dashed #2563eb;
+    border-radius: 18px;
+    padding: 26px 0 22px 0;
+    margin: 22px 0 18px 0;
+    text-align: center;
+    transition: box-shadow 0.2s;
+    box-shadow: 0 2px 18px rgba(37,99,235,0.07);
+    position: relative;
+    letter-spacing: 0.1px;
+    animation: floatfade 1.4s cubic-bezier(.44,1.8,.64,1) 0s 1, bobble 2.8s infinite ease-in-out;
+  }
+
+  .empty::before {
+    content: "🧬";
+    font-size: 2.1em;
+    display: block;
+    margin-bottom: 0.25em;
+    opacity: 0.85;
+    animation: dnabounce 2.3s infinite cubic-bezier(.7,-0.01,.6,1.26);
+  }
+
+  @keyframes floatfade {
+    0% { opacity: 0; transform: translateY(24px);}
+    80% { opacity: 1; }
+    100% { opacity: 1; transform: translateY(0);}
+  }
+  @keyframes bobble {
+    0%, 100% { transform: translateY(12px);}
+    50% { transform: translateY(-12px);}
+  }
+  @keyframes dnabounce {
+    0%, 100% { transform: scale(1) rotate(-8deg);}
+    30% { transform: scale(1.14) rotate(6deg);}
+    60% { transform: scale(1) rotate(-6deg);}
+  }
+
+  @keyframes bgmove {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+  }
+  body {
+    background: linear-gradient(90deg,#f3f4f6,#14b8a6,#8ecae6,#b5179e);
+    background-size: 300% 300%;
+    animation: bgmove 14s ease-in-out infinite alternate;
+  }
+
+  @keyframes seqfadein {
+    from {opacity: 0; transform: translateY(32px);}
+    to {opacity: 1; transform: translateY(0);}
+  }
+  .seqbox {
+    animation: seqfadein 0.8s cubic-bezier(.45,1.8,.64,1);
+  }
+
+  </style>
+</head>
+
+<body>
+  <main class="main">
+    <div class="wrap">
+      <div class="card">
+        <div class="flex justify-between items-start">
+          <div>
+            <h1 class="text-2xl font-bold hero-anim">Amino-acid Sequence Visualizer</h1>
+          </div>
+          <!-- dark-mode toggle -->
+          <label class="toggle-switch mt-1" aria-label="Toggle dark mode">
+            <input type="checkbox" id="themeToggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <button id="toggle-desc-btn" style="margin-bottom: 0px;"class="text-indigo-600 font-medium mb-2 hover:underline">Hide Instructions</button>
+        <div class="tool-desc mt-4 mb-4 px-2 py-2" id="tool-desc">
+          <b>Amino-acid Sequence Visualizer</b> is an interactive web-based tool designed for rapid exploration, annotation, and export of protein sequences for bioinformatics workflows. Paste or upload FASTA-formatted sequences to render each entry as an individual or aligned layout, interactive grid, enabling intuitive inspection of residue-level details and patterns.
+          <br><br>
+          Choose from a range of available color schemes including <b>Clustal</b>, <b>Zappo</b>, <b>Taylor</b>, <b>Rasmol</b>, and a color-blind-friendly palette to visualize amino acid properties such as hydrophobicity, charge, and chemical class, with an adaptive legend that updates in real time. Instantly search for and highlight sequence motifs (supports <b>X</b>/<b>*</b> for variable residues), or select any region to analyze length and hydrophobic content.
+          <br><br>
+          The interface supports fast residue mutagenesis via <b>double-click</b>, with <b>undo/redo</b> options for rapid residue swapping. All sequence tracks remain interactive: simply <b>drag-and-drop</b> to reorder, or <b>lock</b> tracks to prevent accidental edits. When ready, export high-resolution <b>SVG</b> or <b>PNG</b> images that fully preserve your chosen color mapping, sequence highlights, mutations, and custom legends that are ready for publication or presentation.
+          <h3 style="margin-top:1em;"><b>Example Output:</b></h3>
+            <!-- PASTE YOUR SVG HERE -->
+          <svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1100 272">
+            <!-- Generator: Adobe Illustrator 29.2.1, SVG Export Plug-In . SVG Version: 2.1.0 Build 116)  -->
+            <defs>
+              <style>
+                .st0, .st1, .st2, .st3, .st4, .st5, .st6 {
+                  stroke: #000000;
+                }
+
+                .st0, .st7 {
+                  fill: #f7f;
+                }
+
+                .st1, .st8 {
+                  fill: gold;
+                }
+
+                .st9, .st8, .st10, .st11, .st12, .st7, .st13 {
+                  stroke: #000000;
+                }
+
+                .st9, .st6 {
+                  fill: orange;
+                }
+
+                .st14 {
+                  fill: #333;
+                }
+
+                .st14, .st15, .st16, .st17, .st18, .st19, .st20 {
+                  font-family: ArialMT, Arial;
+                  font-size: 12px;
+                  isolation: isolate;
+                }
+
+                .st2, .st13 {
+                  fill: #ff6a6a;
+                }
+
+                .st15 {
+                  fill: #8da2b5;
+                }
+
+                .st21 {
+                  fill: #f8fafc;
+                  stroke: #d1d5db;
+                }
+
+                .st3, .st11 {
+                  fill: aqua;
+                }
+
+                .st16 {
+                  fill: #6b7280;
+                }
+
+                .st22 {
+                  fill: none;
+                  stroke: #e5e7eb;
+                }
+
+                .st23 {
+                  fill: #fff;
+                }
+
+                .st10, .st5 {
+                  fill: #90ee90;
+                }
+
+                .st18 {
+                  fill: #111827;
+                }
+
+                .st19 {
+                  fill: #6f8094;
+                }
+
+                .st12, .st4 {
+                  fill: #87cefa;
+                }
+
+                .st20 {
+                  fill: #666;
+                }
+              </style>
+            </defs>
+            <rect class="st23" width="1100" height="272"/>
+            <text class="st14" transform="translate(20.95 41)"><tspan x="0" y="0">Palette: Clustal</tspan></text>
+            <rect class="st21" x="208.8" y="26" width="211.2" height="22"/>
+            <circle class="st12" cx="221.8" cy="37" r="5"/>
+            <text class="st18" transform="translate(228.8 41)"><tspan x="0" y="0">Hydrophobic</tspan></text>
+            <text class="st16" transform="translate(316 41)"><tspan x="0" y="0">A,C,I,L,M,F,W,V</tspan></text>
+            <rect class="st21" x="428" y="26" width="116.8" height="22"/>
+            <circle class="st10" cx="441" cy="37" r="5" transform="translate(333.84 466.38) rotate(-80.78)"/>
+            <text class="st18" transform="translate(448 41)"><tspan x="0" y="0">Polar</tspan></text>
+            <text class="st16" transform="translate(492 41)"><tspan x="0" y="0">N,Q,S,T</tspan></text>
+            <rect class="st21" x="552.8" y="26" width="112.8" height="22"/>
+            <circle class="st13" cx="565.8" cy="37" r="5"/>
+            <text class="st18" transform="translate(572.8 41)"><tspan x="0" y="0">Positive</tspan></text>
+            <text class="st16" transform="translate(638.4 41)"><tspan x="0" y="0">K,R</tspan></text>
+            <rect class="st21" x="673.6" y="26" width="112.8" height="22"/>
+            <circle class="st7" cx="686.6" cy="37" r="5"/>
+            <text class="st18" transform="translate(693.6 41)"><tspan x="0" y="0">Negative</tspan></text>
+            <text class="st16" transform="translate(759.2 41)"><tspan x="0" y="0">D,E</tspan></text>
+            <rect class="st21" x="794.4" y="26" width="112.8" height="22"/>
+            <circle class="st11" cx="807.4" cy="37" r="5"/>
+            <text class="st18" transform="translate(814.4 41)"><tspan x="0" y="0">Aromatic</tspan></text>
+            <text class="st16" transform="translate(880 41)"><tspan x="0" y="0">H,Y</tspan></text>
+            <rect class="st21" x="915.2" y="26" width="64" height="22"/>
+            <circle class="st9" cx="928.2" cy="37" r="5"/>
+            <text class="st18" transform="translate(935.2 41)"><tspan x="0" y="0">Gly</tspan></text>
+            <text class="st16" transform="translate(964.8 41)"><tspan x="0" y="0">G</tspan></text>
+            <rect class="st21" x="987.2" y="26" width="64" height="22"/>
+            <circle class="st8" cx="1000.2" cy="37" r="5"/>
+            <text class="st18" transform="translate(1007.2 41)"><tspan x="0" y="0">Pro</tspan></text>
+            <text class="st16" transform="translate(1036.8 41)"><tspan x="0" y="0">P</tspan></text>
+            <text class="st17" transform="translate(20 72)"><tspan x="0" y="0">Ubiquitin (Homo sapiens)</tspan></text>
+            <text class="st20" transform="translate(20 86)"><tspan x="0" y="0">(156 aa, 17.95 kDa)</tspan></text>
+            <text class="st15" transform="translate(184.66 96)"><tspan x="0" y="0">1</tspan></text>
+            <text class="st15" transform="translate(256.66 96)"><tspan x="0" y="0">5</tspan></text>
+            <text class="st19" transform="translate(343.33 96)"><tspan x="0" y="0">10</tspan></text>
+            <text class="st15" transform="translate(433.33 96)"><tspan x="0" y="0">15</tspan></text>
+            <text class="st19" transform="translate(523.33 96)"><tspan x="0" y="0">20</tspan></text>
+            <text class="st15" transform="translate(613.33 96)"><tspan x="0" y="0">25</tspan></text>
+            <text class="st19" transform="translate(703.33 96)"><tspan x="0" y="0">30</tspan></text>
+            <text class="st15" transform="translate(793.33 96)"><tspan x="0" y="0">35</tspan></text>
+            <text class="st19" transform="translate(883.33 96)"><tspan x="0" y="0">40</tspan></text>
+            <text class="st15" transform="translate(973.33 96)"><tspan x="0" y="0">45</tspan></text>
+            <text class="st19" transform="translate(1063.33 96)"><tspan x="0" y="0">50</tspan></text>
+            <rect class="st4" x="180" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(183 114)"><tspan x="0" y="0">M</tspan></text>
+            <rect class="st5" x="198" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(201.33 114)"><tspan x="0" y="0">Q</tspan></text>
+            <rect class="st4" x="216" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(222.33 114)"><tspan x="0" y="0">I</tspan></text>
+            <rect class="st4" x="234" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(238.33 114)"><tspan x="0" y="0">F</tspan></text>
+            <rect class="st4" x="252" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(256 114)"><tspan x="0" y="0">V</tspan></text>
+            <rect class="st2" x="270" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(274 114)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st5" x="288" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(292.33 114)"><tspan x="0" y="0">T</tspan></text>
+            <rect class="st4" x="306" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(310.66 114)"><tspan x="0" y="0">L</tspan></text>
+            <rect class="st5" x="324" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(328.33 114)"><tspan x="0" y="0">T</tspan></text>
+            <rect class="st6" x="342" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(345.33 114)"><tspan x="0" y="0">G</tspan></text>
+            <rect class="st2" x="360" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(364 114)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st5" x="378" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(382.33 114)"><tspan x="0" y="0">T</tspan></text>
+            <rect class="st4" x="396" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(402.33 114)"><tspan x="0" y="0">I</tspan></text>
+            <rect class="st5" x="414" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(418.33 114)"><tspan x="0" y="0">T</tspan></text>
+            <rect class="st4" x="432" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(436.66 114)"><tspan x="0" y="0">L</tspan></text>
+            <rect class="st0" x="450" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(454 114)"><tspan x="0" y="0">E</tspan></text>
+            <rect class="st4" x="468" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(472 114)"><tspan x="0" y="0">V</tspan></text>
+            <rect class="st0" x="486" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(490 114)"><tspan x="0" y="0">E</tspan></text>
+            <rect class="st1" x="504" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(508 114)"><tspan x="0" y="0">P</tspan></text>
+            <rect class="st5" x="522" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(526 114)"><tspan x="0" y="0">S</tspan></text>
+            <rect class="st0" x="540" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(543.67 114)"><tspan x="0" y="0">D</tspan></text>
+            <rect class="st5" x="558" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(562.33 114)"><tspan x="0" y="0">T</tspan></text>
+            <rect class="st4" x="576" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(582.33 114)"><tspan x="0" y="0">I</tspan></text>
+            <rect class="st0" x="594" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(598 114)"><tspan x="0" y="0">E</tspan></text>
+            <rect class="st5" x="612" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(615.67 114)"><tspan x="0" y="0">N</tspan></text>
+            <rect class="st4" x="630" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(634 114)"><tspan x="0" y="0">V</tspan></text>
+            <rect class="st2" x="648" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(652 114)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st4" x="666" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(670 114)"><tspan x="0" y="0">A</tspan></text>
+            <rect class="st2" x="684" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(688 114)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st4" x="702" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(708.33 114)"><tspan x="0" y="0">I</tspan></text>
+            <rect class="st5" x="720" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(723.33 114)"><tspan x="0" y="0">Q</tspan></text>
+            <rect class="st0" x="738" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(741.67 114)"><tspan x="0" y="0">D</tspan></text>
+            <rect class="st2" x="756" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(760 114)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st0" x="774" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(778 114)"><tspan x="0" y="0">E</tspan></text>
+            <rect class="st6" x="792" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(795.33 114)"><tspan x="0" y="0">G</tspan></text>
+            <rect class="st4" x="810" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(816.33 114)"><tspan x="0" y="0">I</tspan></text>
+            <rect class="st1" x="828" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(832 114)"><tspan x="0" y="0">P</tspan></text>
+            <rect class="st1" x="846" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(850 114)"><tspan x="0" y="0">P</tspan></text>
+            <rect class="st0" x="864" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(867.67 114)"><tspan x="0" y="0">D</tspan></text>
+            <rect class="st5" x="882" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(885.33 114)"><tspan x="0" y="0">Q</tspan></text>
+            <rect class="st5" x="900" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(903.33 114)"><tspan x="0" y="0">Q</tspan></text>
+            <rect class="st2" x="918" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(921.67 114)"><tspan x="0" y="0">R</tspan></text>
+            <rect class="st4" x="936" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(940.66 114)"><tspan x="0" y="0">L</tspan></text>
+            <rect class="st4" x="954" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(960.33 114)"><tspan x="0" y="0">I</tspan></text>
+            <rect class="st4" x="972" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(976.33 114)"><tspan x="0" y="0">F</tspan></text>
+            <rect class="st4" x="990" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(994 114)"><tspan x="0" y="0">A</tspan></text>
+            <rect class="st6" x="1008" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(1011.33 114)"><tspan x="0" y="0">G</tspan></text>
+            <rect class="st2" x="1026" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(1030 114)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st5" x="1044" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(1047.33 114)"><tspan x="0" y="0">Q</tspan></text>
+            <rect class="st4" x="1062" y="100" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(1066.66 114)"><tspan x="0" y="0">L</tspan></text>
+            <text class="st15" transform="translate(253.33 138)"><tspan x="0" y="0">55</tspan></text>
+            <text class="st19" transform="translate(343.33 138)"><tspan x="0" y="0">60</tspan></text>
+            <text class="st15" transform="translate(433.33 138)"><tspan x="0" y="0">65</tspan></text>
+            <text class="st19" transform="translate(523.33 138)"><tspan x="0" y="0">70</tspan></text>
+            <text class="st15" transform="translate(613.33 138)"><tspan x="0" y="0">75</tspan></text>
+            <text class="st19" transform="translate(703.33 138)"><tspan x="0" y="0">80</tspan></text>
+            <text class="st15" transform="translate(793.33 138)"><tspan x="0" y="0">85</tspan></text>
+            <text class="st19" transform="translate(883.33 138)"><tspan x="0" y="0">90</tspan></text>
+            <text class="st15" transform="translate(973.33 138)"><tspan x="0" y="0">95</tspan></text>
+            <text class="st19" transform="translate(1059.99 138)"><tspan x="0" y="0">100</tspan></text>
+            <rect class="st0" x="180" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(184 156)"><tspan x="0" y="0">E</tspan></text>
+            <rect class="st0" x="198" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(201.67 156)"><tspan x="0" y="0">D</tspan></text>
+            <rect class="st6" x="216" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(219.33 156)"><tspan x="0" y="0">G</tspan></text>
+            <rect class="st2" x="234" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(237.67 156)"><tspan x="0" y="0">R</tspan></text>
+            <rect class="st5" x="252" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(256.33 156)"><tspan x="0" y="0">T</tspan></text>
+            <rect class="st4" x="270" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(274.66 156)"><tspan x="0" y="0">L</tspan></text>
+            <rect class="st5" x="288" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(292 156)"><tspan x="0" y="0">S</tspan></text>
+            <rect class="st0" x="306" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(309.67 156)"><tspan x="0" y="0">D</tspan></text>
+            <rect class="st3" x="324" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(328 156)"><tspan x="0" y="0">Y</tspan></text>
+            <rect class="st5" x="342" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(345.67 156)"><tspan x="0" y="0">N</tspan></text>
+            <rect class="st4" x="360" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(366.33 156)"><tspan x="0" y="0">I</tspan></text>
+            <rect class="st5" x="378" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(381.33 156)"><tspan x="0" y="0">Q</tspan></text>
+            <rect class="st2" x="396" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(400 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st0" x="414" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(418 156)"><tspan x="0" y="0">E</tspan></text>
+            <rect class="st5" x="432" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(436 156)"><tspan x="0" y="0">S</tspan></text>
+            <rect class="st5" x="450" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(454.33 156)"><tspan x="0" y="0">T</tspan></text>
+            <rect class="st4" x="468" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(472.66 156)"><tspan x="0" y="0">L</tspan></text>
+            <rect class="st3" x="486" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(489.67 156)"><tspan x="0" y="0">H</tspan></text>
+            <rect class="st4" x="504" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(508.66 156)"><tspan x="0" y="0">L</tspan></text>
+            <rect class="st4" x="522" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(526 156)"><tspan x="0" y="0">V</tspan></text>
+            <rect class="st4" x="540" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(544.66 156)"><tspan x="0" y="0">L</tspan></text>
+            <rect class="st2" x="558" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(561.67 156)"><tspan x="0" y="0">R</tspan></text>
+            <rect class="st4" x="576" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(580.66 156)"><tspan x="0" y="0">L</tspan></text>
+            <rect class="st2" x="594" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(597.67 156)"><tspan x="0" y="0">R</tspan></text>
+            <rect class="st6" x="612" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(615.33 156)"><tspan x="0" y="0">G</tspan></text>
+            <rect class="st6" x="630" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(633.33 156)"><tspan x="0" y="0">G</tspan></text>
+            <rect class="st4" x="648" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(652 156)"><tspan x="0" y="0">A</tspan></text>
+            <rect class="st2" x="666" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(670 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st2" x="684" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(688 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st2" x="702" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(705.67 156)"><tspan x="0" y="0">R</tspan></text>
+            <rect class="st2" x="720" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(724 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st2" x="738" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(742 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st2" x="756" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(760 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st5" x="774" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(778 156)"><tspan x="0" y="0">S</tspan></text>
+            <rect class="st3" x="792" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(796 156)"><tspan x="0" y="0">Y</tspan></text>
+            <rect class="st5" x="810" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(814.33 156)"><tspan x="0" y="0">T</tspan></text>
+            <rect class="st5" x="828" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(832.33 156)"><tspan x="0" y="0">T</tspan></text>
+            <rect class="st1" x="846" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(850 156)"><tspan x="0" y="0">P</tspan></text>
+            <rect class="st2" x="864" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(868 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st2" x="882" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(886 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st5" x="900" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(903.67 156)"><tspan x="0" y="0">N</tspan></text>
+            <rect class="st2" x="918" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(922 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st3" x="936" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(939.67 156)"><tspan x="0" y="0">H</tspan></text>
+            <rect class="st2" x="954" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(958 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st2" x="972" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(975.67 156)"><tspan x="0" y="0">R</tspan></text>
+            <rect class="st2" x="990" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(994 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st2" x="1008" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(1012 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st4" x="1026" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(1030 156)"><tspan x="0" y="0">V</tspan></text>
+            <rect class="st2" x="1044" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(1048 156)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st4" x="1062" y="142" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(1066.66 156)"><tspan x="0" y="0">L</tspan></text>
+            <text class="st15" transform="translate(249.99 180)"><tspan x="0" y="0">105</tspan></text>
+            <text class="st19" transform="translate(340.43 180)"><tspan x="0" y="0">110</tspan></text>
+            <text class="st15" transform="translate(430.43 180)"><tspan x="0" y="0">115</tspan></text>
+            <text class="st19" transform="translate(519.99 180)"><tspan x="0" y="0">120</tspan></text>
+            <text class="st15" transform="translate(609.99 180)"><tspan x="0" y="0">125</tspan></text>
+            <text class="st19" transform="translate(699.99 180)"><tspan x="0" y="0">130</tspan></text>
+            <text class="st15" transform="translate(789.99 180)"><tspan x="0" y="0">135</tspan></text>
+            <text class="st19" transform="translate(879.99 180)"><tspan x="0" y="0">140</tspan></text>
+            <text class="st15" transform="translate(969.99 180)"><tspan x="0" y="0">145</tspan></text>
+            <text class="st19" transform="translate(1059.99 180)"><tspan x="0" y="0">150</tspan></text>
+            <rect class="st4" x="180" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(184 198)"><tspan x="0" y="0">A</tspan></text>
+            <rect class="st4" x="198" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(202 198)"><tspan x="0" y="0">V</tspan></text>
+            <rect class="st4" x="216" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(220.66 198)"><tspan x="0" y="0">L</tspan></text>
+            <rect class="st2" x="234" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(238 198)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st3" x="252" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(256 198)"><tspan x="0" y="0">Y</tspan></text>
+            <rect class="st3" x="270" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(274 198)"><tspan x="0" y="0">Y</tspan></text>
+            <rect class="st2" x="288" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(292 198)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st4" x="306" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(310 198)"><tspan x="0" y="0">V</tspan></text>
+            <rect class="st0" x="324" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(327.67 198)"><tspan x="0" y="0">D</tspan></text>
+            <rect class="st0" x="342" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(346 198)"><tspan x="0" y="0">E</tspan></text>
+            <rect class="st5" x="360" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(363.67 198)"><tspan x="0" y="0">N</tspan></text>
+            <rect class="st6" x="378" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(381.33 198)"><tspan x="0" y="0">G</tspan></text>
+            <rect class="st2" x="396" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(400 198)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st4" x="414" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(420.33 198)"><tspan x="0" y="0">I</tspan></text>
+            <rect class="st5" x="432" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(436 198)"><tspan x="0" y="0">S</tspan></text>
+            <rect class="st2" x="450" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(453.67 198)"><tspan x="0" y="0">R</tspan></text>
+            <rect class="st4" x="468" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(472.66 198)"><tspan x="0" y="0">L</tspan></text>
+            <rect class="st2" x="486" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(489.67 198)"><tspan x="0" y="0">R</tspan></text>
+            <rect class="st2" x="504" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(507.67 198)"><tspan x="0" y="0">R</tspan></text>
+            <rect class="st0" x="522" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(526 198)"><tspan x="0" y="0">E</tspan></text>
+            <rect class="st4" x="540" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(543.67 198)"><tspan x="0" y="0">C</tspan></text>
+            <rect class="st1" x="558" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(562 198)"><tspan x="0" y="0">P</tspan></text>
+            <rect class="st5" x="576" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(580 198)"><tspan x="0" y="0">S</tspan></text>
+            <rect class="st0" x="594" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(597.67 198)"><tspan x="0" y="0">D</tspan></text>
+            <rect class="st0" x="612" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(616 198)"><tspan x="0" y="0">E</tspan></text>
+            <rect class="st4" x="630" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(633.67 198)"><tspan x="0" y="0">C</tspan></text>
+            <rect class="st6" x="648" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(651.33 198)"><tspan x="0" y="0">G</tspan></text>
+            <rect class="st4" x="666" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(670 198)"><tspan x="0" y="0">A</tspan></text>
+            <rect class="st6" x="684" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(687.33 198)"><tspan x="0" y="0">G</tspan></text>
+            <rect class="st4" x="702" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(706 198)"><tspan x="0" y="0">V</tspan></text>
+            <rect class="st4" x="720" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(724.33 198)"><tspan x="0" y="0">F</tspan></text>
+            <rect class="st4" x="738" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(741 198)"><tspan x="0" y="0">M</tspan></text>
+            <rect class="st4" x="756" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(760 198)"><tspan x="0" y="0">A</tspan></text>
+            <rect class="st5" x="774" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(778 198)"><tspan x="0" y="0">S</tspan></text>
+            <rect class="st3" x="792" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(795.67 198)"><tspan x="0" y="0">H</tspan></text>
+            <rect class="st4" x="810" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(814.33 198)"><tspan x="0" y="0">F</tspan></text>
+            <rect class="st0" x="828" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(831.67 198)"><tspan x="0" y="0">D</tspan></text>
+            <rect class="st2" x="846" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(849.67 198)"><tspan x="0" y="0">R</tspan></text>
+            <rect class="st3" x="864" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(867.67 198)"><tspan x="0" y="0">H</tspan></text>
+            <rect class="st3" x="882" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(886 198)"><tspan x="0" y="0">Y</tspan></text>
+            <rect class="st4" x="900" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(903.67 198)"><tspan x="0" y="0">C</tspan></text>
+            <rect class="st6" x="918" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(921.33 198)"><tspan x="0" y="0">G</tspan></text>
+            <rect class="st2" x="936" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(940 198)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st4" x="954" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(957.67 198)"><tspan x="0" y="0">C</tspan></text>
+            <rect class="st4" x="972" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(975.67 198)"><tspan x="0" y="0">C</tspan></text>
+            <rect class="st4" x="990" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(994.66 198)"><tspan x="0" y="0">L</tspan></text>
+            <rect class="st5" x="1008" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(1012.33 198)"><tspan x="0" y="0">T</tspan></text>
+            <rect class="st3" x="1026" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(1030 198)"><tspan x="0" y="0">Y</tspan></text>
+            <rect class="st4" x="1044" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(1047.67 198)"><tspan x="0" y="0">C</tspan></text>
+            <rect class="st4" x="1062" y="184" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(1066.33 198)"><tspan x="0" y="0">F</tspan></text>
+            <text class="st15" transform="translate(249.99 222)"><tspan x="0" y="0">155</tspan></text>
+            <rect class="st5" x="180" y="226" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(183.67 240)"><tspan x="0" y="0">N</tspan></text>
+            <rect class="st2" x="198" y="226" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(202 240)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st1" x="216" y="226" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(220 240)"><tspan x="0" y="0">P</tspan></text>
+            <rect class="st0" x="234" y="226" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(238 240)"><tspan x="0" y="0">E</tspan></text>
+            <rect class="st0" x="252" y="226" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(255.67 240)"><tspan x="0" y="0">D</tspan></text>
+            <rect class="st2" x="270" y="226" width="16" height="20" rx="4" ry="4"/>
+            <text class="st17" transform="translate(274 240)"><tspan x="0" y="0">K</tspan></text>
+            <rect class="st22" x="288" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="306" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="324" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="342" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="360" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="378" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="396" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="414" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="432" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="450" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="468" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="486" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="504" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="522" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="540" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="558" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="576" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="594" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="612" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="630" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="648" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="666" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="684" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="702" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="720" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="738" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="756" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="774" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="792" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="810" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="828" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="846" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="864" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="882" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="900" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="918" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="936" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="954" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="972" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="990" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="1008" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="1026" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="1044" y="226" width="16" height="20" rx="4" ry="4"/>
+            <rect class="st22" x="1062" y="226" width="16" height="20" rx="4" ry="4"/>
+          </svg>
+        </div>
+        <script>
+          const btn = document.getElementById('toggle-desc-btn');
+          const desc = document.getElementById('tool-desc');
+          btn.addEventListener('click', function() {
+            if (desc.style.display === 'none') {
+              desc.style.display = '';
+              btn.textContent = 'Hide Instructions';
+            } else {
+              desc.style.display = 'none';
+              btn.textContent = 'Show Instructions';
+            }
+          });
+        </script>
+        <!-- palette + options -->
+        <div class="toolbar">
+          <label for="paletteSel" style="border:none;padding:0;background:transparent">Color scheme:</label>
+          <select id="paletteSel" aria-label="Color scheme">
+            <option value="clustal" selected>Clustal (default)</option>
+            <option value="zappo">Zappo</option>
+            <option value="taylor">Taylor</option>
+            <option value="rasmol">Rasmol</option>
+            <option value="cb">Color-blind-safe</option>
+          </select>
+        </div>
+        <div class="toolbar-row">
+          <label><input type="checkbox" id="showNums" checked> Show numbers</label>
+        </div>
+
+        <!-- motif search -->
+        <div class="motifbar">
+          <input id="motif" type="text" placeholder="Motif (e.g., LVL or LXL)">
+          <button id="motifFind">Find</button>
+          <button id="motifClear">Clear</button>
+          <span id="motifErr" class="err" aria-live="polite"></span>
+        </div>
+
+        <div class="legend" id="legend"></div>
+
+        <!-- sequence input form -->
+        <form class="form" id="seqForm">
+          <div class="input-toggle">
+            <span style="color:var(--muted);font-weight:700">Input:</span>
+            <label><input type="radio" name="inmode" id="modeManual" value="manual" checked> Manual</label>
+            <label><input type="radio" name="inmode" id="modeFile" value="file"> Upload file (FASTA)</label>
+          </div>
+
+          <label for="name" class="manual-only">Name</label>
+          <input id="name" class="manual-only" type="text" placeholder="e.g., WT, Scrambled, Mut1">
+          <button id="addBtn" type="submit">Add</button>
+
+          <label for="seq" class="manual-only">Sequence</label>
+          <textarea id="seq" class="manual-only"
+            placeholder="Paste sequence (amino-acid letters and '-' for gaps) or in FASTA format."></textarea>
+          <div style="margin-top:0.5rem; grid-column:1/-1;">
+            <button type="button" class="text-indigo-600 font-medium mb-2 hover:underline"
+              style="
+                background:none;
+                border:none;
+                color:#0077B6;
+                cursor:pointer;
+                font-size:0.95em;
+                padding:0;
+                margin-top:0.1rem;
+                grid-column:1/-1;
+              "
+              id="example-seq-link">
+              Example sequence: Ubiquitin (Homo sapiens)
+            </button>
+          </div>
+          <div class="row-help manual-only">
+            Tip: FASTA paste is supported. Each “&gt;Name” header becomes a separate sequence.
+          </div>
+
+          <div class="file-row" id="fileRow">
+            <input type="file" id="seqFile" accept=".fa,.fasta,.faa,.txt">
+            <button type="button" id="importBtn">Import</button>
+          </div>
+        </form>
+
+        <div id="errors" class="error" aria-live="polite"></div>
+        <div id="list"><div class="empty">No sequences yet. Add one above.</div></div>
+
+        <div class="selbar" id="selbar" style="display:none">
+          <div class="selinfo" id="selinfo">No selection</div>
+          <button id="selCopy">Copy selection</button>
+          <button id="selClear">Clear selection</button>
+        </div>
+
+        <div class="exportbar">
+          <button id="exportSVG" disabled>Export SVG</button>
+          <button id="exportPNG" disabled>Export PNG</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    Created by <a href="https://github.com/mbuyukyoruk" target="_blank" rel="noopener">Murat Buyukyoruk</a>
+  </footer>
+<!-- ─────────────────────────────────────────────────
+     FULL JAVASCRIPT (everything after </footer>)
+───────────────────────────────────────────────── -->
+<script>
+/* eslint-disable */
+
+(function(){
+/*────────────────────────────────────────────
+  CONSTANTS & UTILS
+────────────────────────────────────────────*/
+const LINE_WIDTH = 50;
+
+const typeClass = {A:"hydro",C:"hydro",D:"neg",E:"neg",F:"hydro",G:"gly",H:"arom",
+                   I:"hydro",K:"pos",L:"hydro",M:"hydro",N:"polar",P:"pro",
+                   Q:"polar",R:"pos",S:"polar",T:"polar",V:"hydro",W:"hydro",Y:"arom","-":"gap"};
+const typeLabel = {hydro:"Hydrophobic",pos:"Positive (basic)",neg:"Negative (acidic)",
+                   polar:"Polar",gly:"Glycine",pro:"Proline",arom:"Aromatic",gap:"Gap"};
+const AA = "ACDEFGHIKLMNPQRSTVWY-".split(""); const valid = new Set(AA);
+
+const RES_MASS = {A:71.03711,R:156.10111,N:114.04293,D:115.02694,C:103.00919,
+                  E:129.04259,Q:128.05858,G:57.02146,H:137.05891,I:113.08406,
+                  L:113.08406,K:128.09496,M:131.04049,F:147.06841,P:97.05276,
+                  S:87.03203,T:101.04768,W:186.07931,Y:163.06333,V:99.06841};
+const H2O = 18.01056;
+const calcMW = seq => seq.split("").reduce((mw,ch)=>mw+(RES_MASS[ch]||0),H2O);
+
+const palettes = {
+  clustal:{name:"Clustal",map:{
+    A:"#87CEFA",C:"#87CEFA",I:"#87CEFA",L:"#87CEFA",M:"#87CEFA",F:"#87CEFA",W:"#87CEFA",V:"#87CEFA",
+    N:"#90EE90",Q:"#90EE90",S:"#90EE90",T:"#90EE90",
+    D:"#FF77FF",E:"#FF77FF",K:"#FF6A6A",R:"#FF6A6A",
+    H:"#00FFFF",Y:"#00FFFF",G:"#FFA500",P:"#FFD700","-":"#ffffff"
+  },legend:[
+    {label:"Hydrophobic",residues:["A","C","I","L","M","F","W","V"],sample:"L"},
+    {label:"Polar",      residues:["N","Q","S","T"],sample:"S"},
+    {label:"Positive",   residues:["K","R"],sample:"K"},
+    {label:"Negative",   residues:["D","E"],sample:"E"},
+    {label:"Aromatic",   residues:["H","Y"],sample:"Y"},
+    {label:"Gly",        residues:["G"],sample:"G"},
+    {label:"Pro",        residues:["P"],sample:"P"},
+  ]},
+  zappo:{name:"Zappo",map:{
+    A:"#FF9900",I:"#FF9900",L:"#FF9900",M:"#FF9900",V:"#FF9900",
+    F:"#3366FF",W:"#3366FF",Y:"#3366FF",
+    K:"#FF0066",R:"#FF0066",H:"#CC66FF",
+    D:"#FF66CC",E:"#FF66CC",S:"#66CC66",T:"#66CC66",
+    N:"#99DD99",Q:"#99DD99",C:"#FFCC00",G:"#FFCC66",P:"#FFB000","-":"#ffffff"
+  },legend:[
+    {label:"Aliphatic",residues:["A","I","L","M","V"],sample:"L"},
+    {label:"Aromatic",residues:["F","W","Y"],sample:"Y"},
+    {label:"Positive",residues:["K","R","H"],sample:"K"},
+    {label:"Negative",residues:["D","E"],sample:"E"},
+    {label:"Polar",   residues:["S","T","N","Q"],sample:"S"},
+    {label:"Cys",     residues:["C"],sample:"C"},
+    {label:"Gly",     residues:["G"],sample:"G"},
+    {label:"Pro",     residues:["P"],sample:"P"},
+  ]},
+  taylor:{name:"Taylor",map:{
+    A:"#CCFF00",C:"#FFFF00",D:"#FF0000",E:"#FF0066",F:"#00FF66",
+    G:"#FF9900",H:"#0066FF",I:"#66FF00",K:"#6600FF",L:"#33FF00",
+    M:"#00FF00",N:"#CC00FF",P:"#FFCC00",Q:"#FF00CC",R:"#0000FF",
+    S:"#FF3300",T:"#FF6600",V:"#99FF00",W:"#00CCFF",Y:"#00FFCC","-":"#ffffff"
+  },legend:"ACDEFGHIKLMNPQRSTVWY".split("").map(a=>({label:a,residues:[a],sample:a}))},
+  rasmol:{name:"Rasmol",map:{
+    A:"#C8C8C8",C:"#E6E600",D:"#E60A0A",E:"#E60A0A",F:"#534CFF",
+    G:"#EBEBEB",H:"#8282D2",I:"#0F820F",K:"#145AFF",L:"#0F820F",
+    M:"#E6E600",N:"#00DCDC",P:"#DC9682",Q:"#00DCDC",R:"#145AFF",
+    S:"#FA9600",T:"#FA9600",V:"#0F820F",W:"#B45AB4",Y:"#534CFF","-":"#ffffff"
+  },legend:[
+    {label:"Hydrophobic (I,L,V)",residues:["I","L","V"],sample:"L"},
+    {label:"Aromatic (F,Y)",     residues:["F","Y"],sample:"Y"},
+    {label:"Tryptophan",         residues:["W"],sample:"W"},
+    {label:"Positive",           residues:["K","R"],sample:"K"},
+    {label:"Negative",           residues:["D","E"],sample:"E"},
+    {label:"Polar amide",        residues:["N","Q"],sample:"N"},
+    {label:"Ser/Thr",            residues:["S","T"],sample:"S"},
+    {label:"Sulfur",             residues:["C","M"],sample:"C"},
+    {label:"Alanine",            residues:["A"],sample:"A"},
+    {label:"Glycine",            residues:["G"],sample:"G"},
+    {label:"Proline",            residues:["P"],sample:"P"},
+    {label:"Histidine",          residues:["H"],sample:"H"}
+  ]},
+  cb:{name:"Colorblind-safe",map:{
+    A:"#56B4E9",C:"#56B4E9",I:"#56B4E9",L:"#56B4E9",M:"#56B4E9",F:"#56B4E9",W:"#56B4E9",V:"#56B4E9",
+    N:"#009E73",Q:"#009E73",S:"#009E73",T:"#009E73",
+    D:"#D55E00",E:"#D55E00",K:"#0072B2",R:"#0072B2",
+    H:"#CC79A7",Y:"#CC79A7",G:"#E69F00",P:"#F0E442","-":"#ffffff"
+  },legend:[
+    {label:"Hydrophobic",residues:["A","C","I","L","M","F","W","V"],sample:"L"},
+    {label:"Polar",      residues:["N","Q","S","T"],sample:"S"},
+    {label:"Positive",   residues:["K","R"],sample:"K"},
+    {label:"Negative",   residues:["D","E"],sample:"E"},
+    {label:"Aromatic",   residues:["H","Y"],sample:"Y"},
+    {label:"Gly",        residues:["G"],sample:"G"},
+    {label:"Pro",        residues:["P"],sample:"P"},
+  ]}
+};
+
+/*────────────────────────────────────────────
+  DOM REFS
+────────────────────────────────────────────*/
+const form          = document.getElementById('seqForm');
+const nameInput     = document.getElementById('name');
+const seqInput      = document.getElementById('seq');
+const addBtn        = document.getElementById('addBtn');
+
+const fileRow   = document.getElementById('fileRow');
+const fileInput = document.getElementById('seqFile');
+const importBtn = document.getElementById('importBtn');
+const modeManual= document.getElementById('modeManual');
+const modeFile  = document.getElementById('modeFile');
+
+const errorsEl      = document.getElementById('errors');
+const list          = document.getElementById('list');
+const paletteSel    = document.getElementById('paletteSel');
+const exportSVGbtn  = document.getElementById('exportSVG');
+const exportPNGbtn  = document.getElementById('exportPNG');
+const legendEl      = document.getElementById('legend');
+const showNums      = document.getElementById('showNums');
+const selbar        = document.getElementById('selbar');
+const selinfo       = document.getElementById('selinfo');
+const selCopy       = document.getElementById('selCopy');
+const selClear      = document.getElementById('selClear');
+const motifInput    = document.getElementById('motif');
+const motifFind     = document.getElementById('motifFind');
+const motifClear    = document.getElementById('motifClear');
+const motifErr      = document.getElementById('motifErr');
+
+/*────────────────────────────────────────────
+  STATE
+────────────────────────────────────────────*/
+const items = [];
+let isDraggingSel=false,dragStartIdx=null,activeSel=null,dragBoxId=null;
+let draggingEl=null,offsetY=0;
+
+/*────────────────────────────────────────────
+  HELPERS
+────────────────────────────────────────────*/
+const sanitizeSeq = s => s.toUpperCase().replace(/[^A-Z\-]/g,"");
+const validateSeq = seq => [...seq].find(ch=>!valid.has(ch)) || null;
+function parseFASTA(text){
+  const lines=text.replace(/\r/g,"").split("\n");
+  const out=[]; let currName=null,currSeq=[];
+  for(const raw of lines){
+    const line=raw.trim(); if(!line) continue;
+    if(line.startsWith(">")){
+      if(currName) out.push({name:currName,seq:currSeq.join("")});
+      currName=line.replace(/^>\s*/,"").trim()||"Untitled"; currSeq=[];
+    } else currSeq.push(line);
+  }
+  if(currName) out.push({name:currName,seq:currSeq.join("")});
+  return out.length?out:null;
+}
+const typeOfAA = ch => typeLabel[typeClass[ch]]||"Unknown";
+const escapeXML = s => s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&apos;"}[c]));
+
+/*────────────────────────────────────────────
+  LEGEND RENDER
+────────────────────────────────────────────*/
+function renderLegend(){
+  const pal=palettes[paletteSel.value];
+  legendEl.innerHTML="";
+  pal.legend.forEach(g=>{
+    const chip=document.createElement("span");chip.className="chip";
+    const dot=document.createElement("span");dot.className="dot";
+    dot.style.background=pal.map[g.sample]||"#888";
+    const lbl=document.createElement("span");lbl.className="label";lbl.textContent=g.label;
+    const res=document.createElement("span");res.className="res";res.textContent=g.residues.join(",");
+    chip.append(dot,lbl,res); legendEl.appendChild(chip);
+  });
+}
+
+/*────────────────────────────────────────────
+  AA SPAN GENERATOR
+────────────────────────────────────────────*/
+function aaSpan(item,ch,idx){
+  if(ch==="-" ){
+    const gap=document.createElement("span");
+    gap.className="aa gap"; gap.dataset.idx=idx; gap.dataset.aa="-";
+    gap.title=`- @ ${idx} — Gap`; gap.textContent="-"; return gap;
+  }
+  const el=document.createElement("span"); el.className="aa"; el.dataset.idx=idx; el.dataset.aa=ch;
+  const orig=item.origSeq[idx-1];
+  const isMut=item.mut&&item.mut.get(idx)&&item.mut.get(idx)!==orig;
+  if(isMut) el.classList.add("mut");
+  const pal=palettes[paletteSel.value].map;
+  el.style.background=pal[ch]||"#ccc"; el.style.color="#000";
+  el.title=item.locked
+      ? `${isMut?orig+"→"+ch:ch} @ ${idx} — ${typeOfAA(ch)} (locked)`
+      : (isMut?`${orig}→${ch} @ ${idx} — ${typeOfAA(ch)} (dbl-click to change)`
+              :`${ch} @ ${idx} — ${typeOfAA(ch)} (dbl-click to mutate)`);
+  el.textContent=ch; return el;
+}
+
+/*────────────────────────────────────────────
+  RULER LINE (grid)
+────────────────────────────────────────────*/
+function buildRulerLine(start,endAbs){
+  const r=document.createElement("div");r.className="ruler";
+  for(let i=start;i<=endAbs;i++){
+    const tick=document.createElement("span");tick.className="tick";
+    if(i%10===0){tick.classList.add("n10");tick.innerHTML=`<strong>${i}</strong>`;}
+    else if(i===1||i%5===0){if(i===1)tick.classList.add("n1");tick.textContent=i;}
+    r.appendChild(tick);
+  }
+  const rendered=Math.max(0,endAbs-start+1), pads=Math.max(0,LINE_WIDTH-rendered);
+  for(let k=0;k<pads;k++){const t=document.createElement("span");t.className="tick";r.appendChild(t);}
+  return r;
+}
+
+/*────────────────────────────────────────────
+  RENDER/REBUILD BOX
+────────────────────────────────────────────*/
+function getRenderedSeq(item){
+  if(!item.mut||item.mut.size===0) return item.origSeq;
+  const arr=item.origSeq.split("");
+  for(const [idx1,newAA] of item.mut.entries())
+    if(idx1>=1&&idx1<=arr.length) arr[idx1-1]=newAA;
+  return arr.join("");
+}
+
+function rebuildBoxRows(box,item){
+  const seq=getRenderedSeq(item);
+  box.querySelectorAll(".ruler,.seqrow").forEach(n=>n.remove());
+
+  const lenSpan=box.querySelector(".title .len");
+  if(lenSpan){const mw=(calcMW(seq.replace(/-/g,""))/1000).toFixed(2);
+              lenSpan.textContent=`(${seq.length} aa, ${mw} kDa)`;}
+
+  let idx=1;
+  for(let pos=0;pos<seq.length;pos+=LINE_WIDTH){
+    const realEnd=Math.min(seq.length,pos+LINE_WIDTH);
+    const r=buildRulerLine(idx,realEnd); r.style.display=showNums.checked?"":"none";
+    box.appendChild(r);
+
+    const seqRow=document.createElement("div");seqRow.className="seqrow";
+    const row=document.createElement("div");row.className="seq";
+    let used=0;
+    for(let i=pos;i<realEnd;i++){row.appendChild(aaSpan(item,seq[i],idx++));used++;}
+    for(let k=used;k<LINE_WIDTH;k++){
+      const pad=document.createElement("span");pad.className="aa pad";pad.textContent="•";row.appendChild(pad);
+    }
+    seqRow.appendChild(row);box.appendChild(seqRow);
+    bindSelectionHandlersForRow(row); bindMutationHandlerForRow(row,item.id);
+  }
+
+  if(seq.length===0){
+    const r=buildRulerLine(1,0);r.style.display=showNums.checked?"":"none";box.appendChild(r);
+    const seqRow=document.createElement("div");seqRow.className="seqrow";
+    const row=document.createElement("div");row.className="seq";
+    for(let k=0;k<LINE_WIDTH;k++){const pad=document.createElement("span");pad.className="aa pad";pad.textContent="•";row.appendChild(pad);}
+    seqRow.appendChild(row);box.appendChild(seqRow);
+  }
+}
+
+/*────────────────────────────────────────────
+  EXPORT BUTTON ENABLE
+────────────────────────────────────────────*/
+function updateExportButtons(){
+  const enabled=items.length>0;
+  exportSVGbtn.disabled=!enabled; exportPNGbtn.disabled=!enabled;
+}
+
+/*────────────────────────────────────────────
+  ACTION BUTTON STATES
+────────────────────────────────────────────*/
+function hasMutations(item){return item.mut&&item.mut.size>0;}
+function updateActionButtonsVisibility(id){
+  const item=items.find(x=>x.id===id); if(!item) return;
+  const box=list.querySelector(`.seqbox[data-id="${id}"]`); if(!box) return;
+  const resetBtn=box.querySelector('button[data-role="reset"]');
+  const undoBtn =box.querySelector('button[data-role="undo"]');
+  const redoBtn =box.querySelector('button[data-role="redo"]');
+  const lockBtn =box.querySelector('button[data-role="lock"]');
+  if(resetBtn) resetBtn.style.display=hasMutations(item)?"":"none";
+  if(undoBtn)  undoBtn.style.display =(item.hist&&item.hist.length>0)?"":"none";
+  if(redoBtn)  redoBtn.style.display =(item.redo&&item.redo.length>0)?"":"none";
+  if(lockBtn){
+    lockBtn.textContent=item.locked?"Unlock":"Lock";
+    lockBtn.title=item.locked?"Unlock to allow mutations":"Lock sequence to prevent mutations";
+  }
+}
+
+/*────────────────────────────────────────────
+  COMPLETE RERENDER
+────────────────────────────────────────────*/
+function rerenderAll(){
+  renderLegend();
+  list.querySelectorAll(".seqbox").forEach(box=>{
+    const id=box.dataset.id;
+    const item=items.find(x=>x.id===id);if(!item) return;
+    rebuildBoxRows(box,item); updateActionButtonsVisibility(id);
+  });
+  if(motifInput.value.trim()) applyMotif();
+  attachReorderHandlersForAll();
+}
+
+/*────────────────────────────────────────────
+  CLIPBOARD
+────────────────────────────────────────────*/
+function copyToClipboard(text){
+  (navigator.clipboard&&navigator.clipboard.writeText)
+    ? navigator.clipboard.writeText(text).catch(()=>fallback())
+    : fallback();
+  function fallback(){
+    const ta=document.createElement("textarea");ta.value=text;document.body.appendChild(ta);
+    ta.select(); try{document.execCommand("copy");}finally{document.body.removeChild(ta);}
+  }
+}
+
+/*────────────────────────────────────────────
+  RENDER NEW ITEM BOX
+────────────────────────────────────────────*/
+function renderItem(name,seq){
+  if(list.querySelector(".empty")) list.innerHTML="";
+  const id=Math.random().toString(36).slice(2,9);
+  items.push({id,name,origSeq:seq,mut:new Map(),locked:false,hist:[],redo:[]});
+
+  const box=document.createElement("div");box.className="seqbox";box.dataset.id=id;
+  const hdr=document.createElement("div");hdr.className="seqhdr";
+  const title=document.createElement("div");title.className="title";
+  const mw0=(calcMW(seq.replace(/-/g,""))/1000).toFixed(2);
+  title.innerHTML=`<span>${name||"Sequence"}</span> <span class="len">(${seq.length} aa, ${mw0} kDa)</span>`;
+
+  const actions=document.createElement("div");actions.className="actions";
+
+  const copyBtn=document.createElement("button");
+  copyBtn.textContent="Copy sequence";
+  copyBtn.onclick=()=>{
+    const item=items.find(x=>x.id===id);
+    copyToClipboard(getRenderedSeq(item));
+    copyBtn.textContent="Copied!"; setTimeout(()=>copyBtn.textContent="Copy sequence",900);
+  };
+
+  const undoBtn=document.createElement("button");
+  undoBtn.textContent="Undo";undoBtn.dataset.role="undo";undoBtn.style.display="none";
+  undoBtn.onclick=()=>{
+    const item=items.find(x=>x.id===id); if(!item||!item.hist.length) return;
+    item.redo.push(new Map(item.mut));
+    item.mut=new Map(item.hist.pop());
+    rebuildBoxRows(box,item); updateActionButtonsVisibility(id);
+    if(motifInput.value.trim()) applyMotif();
+  };
+
+  const redoBtn=document.createElement("button");
+  redoBtn.textContent="Redo";redoBtn.dataset.role="redo";redoBtn.style.display="none";
+  redoBtn.onclick=()=>{
+    const item=items.find(x=>x.id===id); if(!item||!item.redo.length) return;
+    item.hist.push(new Map(item.mut));
+    item.mut=new Map(item.redo.pop());
+    rebuildBoxRows(box,item); updateActionButtonsVisibility(id);
+    if(motifInput.value.trim()) applyMotif();
+  };
+
+  const resetBtn=document.createElement("button");
+  resetBtn.textContent="Reset mutations";resetBtn.dataset.role="reset";resetBtn.style.display="none";
+  resetBtn.onclick=()=>{
+    const it=items.find(x=>x.id===id); if(!it||!it.mut.size) return;
+    it.hist.push(new Map(it.mut)); it.mut.clear(); it.redo.length=0;
+    rebuildBoxRows(box,it); updateActionButtonsVisibility(id);
+    if(motifInput.value.trim()) applyMotif();
+  };
+
+  const lockBtn=document.createElement("button");
+  lockBtn.textContent="Lock";lockBtn.dataset.role="lock";
+  lockBtn.onclick=()=>{
+    const it=items.find(x=>x.id===id); if(!it) return;
+    it.locked=!it.locked; rebuildBoxRows(box,it); updateActionButtonsVisibility(id);
+  };
+
+  const removeBtn=document.createElement("button");
+  removeBtn.textContent="Remove";
+  removeBtn.onclick=()=>{
+    const idx=items.findIndex(x=>x.id===id); if(idx>-1) items.splice(idx,1);
+    box.remove();
+    if(!list.children.length) list.innerHTML='<div class="empty">No sequences yet. Add one above.</div>';
+    if(activeSel&&activeSel.id===id) clearSelection();
+    updateExportButtons();
+  };
+
+  const handle=document.createElement("button");
+  handle.className="drag-handle";handle.title="Drag to reorder";handle.textContent="≡";
+
+  actions.append(copyBtn,undoBtn,redoBtn,resetBtn,lockBtn,removeBtn,handle);
+  hdr.append(title,actions); box.append(hdr); list.appendChild(box);
+
+  rebuildBoxRows(box,items.find(x=>x.id===id));
+  updateActionButtonsVisibility(id);
+  if(motifInput.value.trim()) applyMotif();
+  enablePointerReorder(box,handle);
+  updateExportButtons();
+}
+
+/*────────────────────────────────────────────
+  EXPORT (SVG / PNG)
+────────────────────────────────────────────*/
+function buildLegendSVG(palettesObj,palName,width,padX,startY){
+  const legend=palettesObj[palName].legend;
+  const dotR=5,chipH=22,chipPadH=8,gapX=8,gapY=8;
+  const textLbl=7.2,textRes=6.4;
+  let x=padX,y=startY,lines=1;const parts=[];
+  for(const g of legend){
+    const label=g.label,residues=g.residues.join(",");
+    const chipW=chipPadH*2+12+label.length*textLbl+8+residues.length*textRes;
+    if(x+chipW>width-padX){x=padX;y+=chipH+gapY;lines++;}
+    parts.push(`<rect x="${x}" y="${y}" width="${chipW}" height="${chipH}" fill="#f8fafc" stroke="#d1d5db"/>`);
+    parts.push(`<circle cx="${x+chipPadH+dotR}" cy="${y+chipH/2}" r="${dotR}" fill="${palettesObj[palName].map[g.sample]||"#888"}" stroke="#000000"/>`);
+    const textY=y+chipH/2+4,lblX=x+chipPadH+12,resX=lblX+label.length*textLbl+8;
+    parts.push(`<text x="${lblX}" y="${textY}" class="legendLbl">${escapeXML(label)}</text>`);
+    parts.push(`<text x="${resX}" y="${textY}" class="legendRes">${escapeXML(residues)}</text>`);
+    x+=chipW+gapX;
+  }
+  return {svg:parts.join(""),height:(chipH+gapY)*lines-gapY};
+}
+
+function buildSVG(){
+  const padX=20,padY=20,labelW=160,chipW=16,chipH=20,gap=2,headerH=26,rulerH=12;
+  const includeRuler=showNums.checked;
+  const width=padX*2+labelW+(chipW+gap)*LINE_WIDTH;
+  let y=padY;
+  const svg=[];
+  svg.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${Math.max(width,400)}" height="10" viewBox="0 0 ${Math.max(width,400)} 10">`);
+  svg.push(`<style>
+    .lbl{font:700 14px ui-sans-serif,system-ui}
+    .len{font:600 11px ui-sans-serif,system-ui;fill:#666}
+    .aa{font:700 12px ui-monospace,Menlo,Consolas}
+    .small{font:600 11px ui-sans-serif,system-ui;fill:#333}
+    .rtick{font:600 10px ui-monospace,Menlo,Consolas;fill:#8da2b5}.rtick10{fill:#6f8094}
+    .legendLbl{font:700 12px ui-sans-serif,system-ui;fill:#111827}
+    .legendRes{font:600 11px ui-monospace,Menlo,Consolas;fill:#6b7280}
+  </style>`);
+  svg.push(`<rect x="0" y="0" width="100%" height="100%" fill="white"/>`);
+
+  const palKey=paletteSel.value;
+  svg.push(`<text x="${padX}" y="${y-6}" class="small">Palette: ${palettes[palKey].name}</text>`);
+  const legendBlock=buildLegendSVG(palettes,palKey,Math.max(width,400),padX,y+6);
+  svg.push(legendBlock.svg); y+=legendBlock.height+16;
+
+  let dynHeight=y;
+  const pal=palettes[palKey].map;
+
+  for(const item of items){
+    const seq=getRenderedSeq(item);
+    const box=list.querySelector(`.seqbox[data-id="${item.id}"]`);
+    const {hits,sels,muts}=collectStateForItem(box);
+
+    svg.push(`<text x="${padX}" y="${y+14}" class="lbl">${escapeXML(item.name||"Sequence")}</text>`);
+    const mw=(calcMW(seq.replace(/-/g,""))/1000).toFixed(2);
+    svg.push(`<text x="${padX}" y="${y+28}" class="len">(${seq.length} aa, ${mw} kDa)</text>`);
+
+    let baseY=y+headerH; const lines=Math.max(1,Math.ceil(seq.length/LINE_WIDTH)); let absIdx=1;
+    for(let line=0;line<lines;line++){
+      const start=line*LINE_WIDTH,end=Math.min(seq.length,start+LINE_WIDTH);
+      const realLen=end-start,pads=LINE_WIDTH-realLen;
+      const baseX=padX+labelW;
+
+      if(includeRuler){
+        let xr=baseX,i=absIdx;
+        for(let k=0;k<realLen;k++,i++){
+          if(i%10===0) svg.push(`<text x="${xr+chipW/2}" y="${baseY+12}" text-anchor="middle" class="rtick rtick10">${i}</text>`);
+          else if(i===1||i%5===0) svg.push(`<text x="${xr+chipW/2}" y="${baseY+12}" text-anchor="middle" class="rtick">${i}</text>`);
+          xr+=chipW+gap;
+        }
+        baseY+=rulerH;
+      }
+
+      let x=baseX; const chipY=baseY+4;
+      for(let i=start;i<end;i++){
+        const ch=seq[i];
+        if(ch==="-" ){
+          svg.push(`<rect x="${x}" y="${chipY}" rx="4" ry="4" width="${chipW}" height="${chipH}" fill="#ffffff" stroke="#000000" stroke-dasharray="2 2"/>`);
+          svg.push(`<text x="${x+chipW/2}" y="${chipY+chipH/2+4}" text-anchor="middle" class="aa" fill="#000">-</text>`);
+          if(sels.has(absIdx)) svg.push(`<rect x="${x+1}" y="${chipY+1}" rx="4" ry="4" width="${chipW-2}" height="${chipH-2}" fill="none" stroke="#3b82f6" stroke-width="2"/>`);
+          x+=chipW+gap; absIdx++; continue;
+        }
+
+        const fill=pal[ch]||"#ccc";
+        svg.push(`<rect x="${x}" y="${chipY}" rx="4" ry="4" width="${chipW}" height="${chipH}" fill="${fill}" stroke="#000000" stroke-width="1"/>`);
+
+        const insetX=x+1,insetY=chipY+1,insetW=chipW-2,insetH=chipH-2;
+        if(muts.has(absIdx)) svg.push(`<rect x="${insetX}" y="${insetY}" rx="4" ry="4" width="${insetW}" height="${insetH}" fill="none" stroke="#a78bfa" stroke-width="2"/>`);
+        if(hits.has(absIdx)) svg.push(`<rect x="${insetX}" y="${insetY}" rx="4" ry="4" width="${insetW}" height="${insetH}" fill="none" stroke="#f59e0b" stroke-width="2"/>`);
+        if(sels.has(absIdx)) svg.push(`<rect x="${insetX}" y="${insetY}" rx="4" ry="4" width="${insetW}" height="${insetH}" fill="none" stroke="#3b82f6" stroke-width="2"/>`);
+
+        const title=muts.has(absIdx)
+          ? `${item.origSeq[absIdx-1]}→${ch} @ ${absIdx} — ${typeOfAA(ch)}`
+          : `${ch} @ ${absIdx} — ${typeOfAA(ch)}`;
+
+        svg.push(`<text x="${x+chipW/2}" y="${chipY+chipH/2+4}" text-anchor="middle" class="aa" fill="#000">${escapeXML(ch)}</text>`);
+        svg.push(`<title>${title}</title>`);
+
+        x+=chipW+gap; absIdx++;
+      }
+      for(let k=0;k<pads;k++){
+        svg.push(`<rect x="${x}" y="${chipY}" rx="4" ry="4" width="${chipW}" height="${chipH}" fill="none" stroke="#e5e7eb" stroke-width="1"/>`);
+        x+=chipW+gap;
+      }
+      baseY+=chipH+10;
+    }
+    y=baseY; dynHeight=y;
+  }
+
+  svg[0]=`<svg xmlns="http://www.w3.org/2000/svg" width="${Math.max(width,400)}" height="${Math.max(dynHeight+padY,160)}" viewBox="0 0 ${Math.max(width,400)} ${Math.max(dynHeight+padY,160)}">`;
+  svg.push(`</svg>`);
+  return svg.join("");
+}
+
+function download(filename,dataURL){
+  const a=document.createElement("a");a.href=dataURL;a.download=filename;document.body.appendChild(a);
+  a.click();a.remove();
+}
+exportSVGbtn.onclick=()=>{
+  if(exportSVGbtn.disabled) return;
+  const svg=buildSVG();
+  const blob=new Blob([svg],{type:"image/svg+xml"});
+  const url=URL.createObjectURL(blob);
+  download(`Visualizer_output_${paletteSel.value}.svg`,url);
+  URL.revokeObjectURL(url);
+};
+exportPNGbtn.onclick=()=>{
+  if(exportPNGbtn.disabled) return;
+  const svg=buildSVG();
+  const w=parseInt(svg.match(/width="(\d+)"/)[1],10)||1200;
+  const h=parseInt(svg.match(/height="(\d+)"/)[1],10)||400;
+  const blob=new Blob([svg],{type:"image/svg+xml"});
+  const url=URL.createObjectURL(blob);
+  const img=new Image();
+  img.onload=()=>{
+    const c=document.createElement("canvas");c.width=w;c.height=h;
+    const ctx=c.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0);
+    URL.revokeObjectURL(url);
+    c.toBlob(b=>{
+      const pngURL=URL.createObjectURL(b);
+      download(`Visualizer_output_${paletteSel.value}.png`,pngURL);
+      URL.revokeObjectURL(pngURL);
+    },"image/png",1.0);
+  };
+  img.onerror=()=>alert("PNG export failed (SVG render error). Try SVG instead.");
+  img.src=url;
+};
+
+/*────────────────────────────────────────────
+  MOTIF SEARCH
+────────────────────────────────────────────*/
+const clearMotifHits=()=>list.querySelectorAll(".aa.hit").forEach(s=>s.classList.remove("hit"));
+const validMotifChar = ch => ch==="X"||ch==="*"||valid.has(ch);
+const matchesAt=(seq,i,motif)=>{
+  for(let j=0;j<motif.length;j++){
+    const mc=motif[j],sc=seq[i+j];
+    if(mc==="X"||mc==="*") continue;
+    if(mc!==sc) return false;
+  }
+  return true;
+};
+function applyMotif(){
+  clearMotifHits(); motifErr.textContent="";
+  const raw=motifInput.value.trim().toUpperCase(); if(!raw) return;
+  for(const ch of raw) if(!validMotifChar(ch)){motifErr.textContent=`Invalid character: ${ch}`;return;}
+  let any=false;
+  list.querySelectorAll(".seqbox").forEach(box=>{
+    const id=box.dataset.id; const item=items.find(x=>x.id===id); if(!item) return;
+    const seq=getRenderedSeq(item); const spans=box.querySelectorAll(".seq .aa:not(.pad)");
+    const L=raw.length; if(L===0||seq.length<L) return;
+    for(let i=0;i<=seq.length-L;i++){
+      if(matchesAt(seq,i,raw)){any=true;for(let k=0;k<L;k++){const s=spans[i+k];if(s)s.classList.add("hit");}}
+    }
+  });
+  if(!any) motifErr.textContent="No matches";
+}
+motifFind.onclick=e=>{e.preventDefault();applyMotif();};
+motifClear.onclick=e=>{e.preventDefault();motifInput.value="";motifErr.textContent="";clearMotifHits();};
+
+/*────────────────────────────────────────────
+  SELECTION HANDLERS
+────────────────────────────────────────────*/
+function bindSelectionHandlers(){list.querySelectorAll(".seq").forEach(bindSelectionHandlersForRow);}
+function bindSelectionHandlersForRow(row){
+  row.onmousedown=onDown; row.onmousemove=onMove; row.onmouseup=onUp;
+}
+function onDown(e){
+  if(e.target.closest(".drag-handle")) return;
+  const target=e.target.closest(".aa"); if(!target||target.classList.contains("pad")) return;
+  e.preventDefault();
+  const row=e.currentTarget,box=row.closest(".seqbox"),id=box.dataset.id;
+  clearSelection(); isDraggingSel=true; dragBoxId=id; dragStartIdx=+target.dataset.idx;
+  applySelectionRange(id,dragStartIdx,dragStartIdx); window.addEventListener("mouseup",onWindowUp);
+}
+function onMove(e){
+  if(!isDraggingSel) return;
+  const target=e.target.closest(".aa"); if(!target||target.classList.contains("pad")) return;
+  applySelectionRange(dragBoxId,dragStartIdx,+target.dataset.idx);
+}
+function onUp(){if(isDraggingSel) finishSelection();}
+function onWindowUp(){if(isDraggingSel) finishSelection();}
+function finishSelection(){isDraggingSel=false;dragStartIdx=null;dragBoxId=null;window.removeEventListener("mouseup",onWindowUp);}
+function applySelectionRange(boxId,start,end){
+  const item=items.find(x=>x.id===boxId); if(!item) return;
+  const s=Math.max(1,Math.min(start,end)),e=Math.min(getRenderedSeq(item).length,Math.max(start,end));
+  list.querySelectorAll(".aa.sel").forEach(x=>x.classList.remove("sel"));
+  const spans=list.querySelector(`.seqbox[data-id="${boxId}"]`).querySelectorAll(".seq .aa:not(.pad)");
+  for(let i=s;i<=e;i++){const el=spans[i-1];if(el) el.classList.add("sel");}
+  const slice=getRenderedSeq(item).slice(s-1,e);
+  const hydroSet=new Set(["A","C","I","L","M","F","W","V"]);
+  const hydroCount=[...slice].filter(ch=>hydroSet.has(ch)).length;
+  const pct=slice.length?((hydroCount/slice.length)*100).toFixed(1):"0.0";
+  activeSel={id:boxId,name:item.name||"Sequence",start:s,end:e,seq:slice};
+  selinfo.textContent=`${activeSel.name}: ${s}–${e}  (${slice.length} aa, ${pct}% hydrophobic)`;
+  selbar.style.display="";
+}
+function clearSelection(){
+  activeSel=null; list.querySelectorAll(".aa.sel").forEach(x=>x.classList.remove("sel"));
+  selinfo.textContent="No selection"; selbar.style.display="none";
+}
+selCopy.onclick=()=>{
+  if(!activeSel) return;
+  (navigator.clipboard&&navigator.clipboard.writeText)
+    ? navigator.clipboard.writeText(activeSel.seq)
+    : copyToClipboard(activeSel.seq);
+  selCopy.textContent="Copied!"; setTimeout(()=>selCopy.textContent="Copy selection",900);
+};
+selClear.onclick=clearSelection;
+
+/*────────────────────────────────────────────
+  MUTATION HANDLER (dbl-click)
+────────────────────────────────────────────*/
+function pushHistory(item){item.hist.push(new Map(item.mut)); if(item.hist.length>500)item.hist.shift();}
+function bindMutationHandlerForRow(row,itemId){
+  row.ondblclick=e=>{
+    const span=e.target.closest(".aa"); if(!span||span.classList.contains("pad")) return;
+    const idx=+span.dataset.idx; const item=items.find(x=>x.id===itemId); if(!item) return;
+    if(span.dataset.aa==="-" ) return;
+    if(item.locked){
+      const old=span.title; span.title=old+" (locked)";
+      setTimeout(()=>span.title=old,700); return;
+    }
+    const currSeq=getRenderedSeq(item); const orig=item.origSeq[idx-1]; const curr=currSeq[idx-1];
+    const input=prompt(`Mutate position ${idx}\nOriginal: ${orig}\nCurrent : ${curr}\nEnter new residue (A,C,D…Y) or blank to revert:`,curr);
+    if(input===null) return;
+    const v=input.trim().toUpperCase();
+    pushHistory(item);
+    if(v===""){item.mut.delete(idx);}
+    else if(v.length===1&&valid.has(v)&&v!=="-"){
+      if(v===orig) item.mut.delete(idx); else item.mut.set(idx,v);
+    }else{item.hist.pop();alert("Please enter a single standard amino-acid letter.");return;}
+    item.redo.length=0;
+    rebuildBoxRows(row.closest(".seqbox"),item); updateActionButtonsVisibility(itemId);
+    if(motifInput.value.trim()) applyMotif();
+  };
+}
+
+/*────────────────────────────────────────────
+  DRAG – REORDER
+────────────────────────────────────────────*/
+function enablePointerReorder(box,handle){
+  if(box.dataset.reorderBound==="1") return; box.dataset.reorderBound="1";
+  handle.onmousedown=e=>{e.preventDefault();startDrag(box,e.pageY);};
+  handle.ontouchstart=e=>{startDrag(box,e.touches[0].pageY);e.preventDefault();},{passive:false};
+}
+function startDrag(box,pageY){
+  draggingEl=box;
+  const r=box.getBoundingClientRect(); offsetY=pageY-(window.scrollY+r.top);
+  const ph=document.createElement("div");ph.className="seqbox placeholder";ph.style.height=r.height+"px";
+  list.insertBefore(ph,box.nextSibling);
+  box.style.width=r.width+"px"; box.style.position="absolute";
+  box.style.left=(r.left+window.scrollX)+"px"; box.style.top=(pageY-offsetY)+"px";
+  box.style.pointerEvents="none"; box.classList.add("dragging"); document.body.appendChild(box);
+  document.body.style.userSelect="none";
+  window.addEventListener("mousemove",onDragMove,true);
+  window.addEventListener("touchmove",onDragMoveTouch,true);
+  window.addEventListener("mouseup",onDragEnd,true);
+  window.addEventListener("touchend",onDragEnd,true);
+  window.addEventListener("touchcancel",onDragEnd,true);
+}
+function onDragMove(e){if(!draggingEl) return;const y=e.pageY;draggingEl.style.top=(y-offsetY)+"px";movePlaceholder(y);}
+function onDragMoveTouch(e){if(!draggingEl) return;e.preventDefault();const y=e.touches[0].pageY;draggingEl.style.top=(y-offsetY)+"px";movePlaceholder(y);}
+function movePlaceholder(pageY){
+  const siblings=[...list.querySelectorAll(".seqbox:not(.placeholder)")];
+  const yClient=pageY-window.scrollY; let after=null;
+  for(const el of siblings){const r=el.getBoundingClientRect();if(yClient<r.top+r.height/2){after=el;break;}}
+  const ph=list.querySelector(".seqbox.placeholder"); after?list.insertBefore(ph,after):list.appendChild(ph);
+}
+function onDragEnd(){
+  if(!draggingEl) return;
+  draggingEl.classList.remove("dragging");
+  draggingEl.style.position="";draggingEl.style.left="";draggingEl.style.top="";
+  draggingEl.style.width="";draggingEl.style.pointerEvents="";
+  const ph=list.querySelector(".seqbox.placeholder"); if(ph){list.insertBefore(draggingEl,ph);ph.remove();}
+  draggingEl=null; document.body.style.userSelect="";
+  window.removeEventListener("mousemove",onDragMove,true);
+  window.removeEventListener("touchmove",onDragMoveTouch,true);
+  window.removeEventListener("mouseup",onDragEnd,true);
+  window.removeEventListener("touchend",onDragEnd,true);
+  window.removeEventListener("touchcancel",onDragEnd,true);
+  const order=[...list.querySelectorAll(".seqbox")].map(b=>b.dataset.id);
+  items.sort((a,b)=>order.indexOf(a.id)-order.indexOf(b.id));
+}
+function attachReorderHandlersForAll(){list.querySelectorAll(".seqbox").forEach(box=>{
+  const h=box.querySelector(".drag-handle");if(h) enablePointerReorder(box,h);
+});}
+
+/*────────────────────────────────────────────
+  MODE TOGGLE (manual / file)
+────────────────────────────────────────────*/
+function setMode(){
+  const manual=modeManual.checked;
+  document.querySelectorAll(".manual-only").forEach(el=>el.style.display=manual?"":"none");
+  fileRow.style.display=manual?"none":"grid";
+  addBtn.style.display=manual?"":"none";
+}
+modeManual.onchange=setMode; modeFile.onchange=setMode; setMode();
+
+/*────────────────────────────────────────────
+  ADD – manual or import file
+────────────────────────────────────────────*/
+function isNucleotideSeq(seq) {
+  return /^[ACGTU]+$/i.test(seq.replace(/[^A-Za-z]/g, ''));
+}
+function handleManualAdd(){
+  errorsEl.textContent="";
+  const nm=nameInput.value.trim();
+  const raw=seqInput.value.trim();
+  if(!raw){errorsEl.textContent="Please paste a sequence (or FASTA).";return;}
+
+  if(/^>/.test(raw)){
+    const entries=parseFASTA(raw);
+    if(!entries){errorsEl.textContent="Invalid FASTA format.";return;}
+    for(const {name,seq} of entries){
+      const s=sanitizeSeq(seq); if(!s.length){errorsEl.textContent=`Entry "${name}" has no letters.`;return;}
+      const bad=validateSeq(s); if(bad){errorsEl.textContent=`Entry "${name}" contains invalid character: ${bad}`;return;}
+    }
+    for(const {name,seq} of entries) {
+      const s = sanitizeSeq(seq);
+      if (isNucleotideSeq(s)) {
+        if (!confirm(`Warning: Entry "${name}" appears to be a nucleotide sequence (DNA or RNA).\nDo you wish to upload/add it as a protein sequence?`)) {
+          continue;
+        }
+      }
+      renderItem(name,s);
+    }
+    return;
+  }
+  const s=sanitizeSeq(raw); if(!s.length){errorsEl.textContent="Sequence has no letters.";return;}
+  const bad=validateSeq(s); if(bad){errorsEl.textContent=`Invalid character in sequence: ${bad}`;return;}
+  if (isNucleotideSeq(s)) {
+    if (!confirm(`Warning: This sequence appears to be a nucleotide sequence (DNA or RNA).\nDo you wish to upload/add it as a protein sequence?`)) {
+      return;
+    }
+  }
+  renderItem(nm||"Sequence",s);
+}
+
+function handleFileImport(){
+  errorsEl.textContent="";
+  const file=fileInput.files&&fileInput.files[0]; if(!file){errorsEl.textContent="Select a FASTA file.";return;}
+  const reader=new FileReader();
+  reader.onerror=()=>errorsEl.textContent="Could not read the file.";
+  reader.onload=()=>{
+    const text=String(reader.result||"");
+    const entries=parseFASTA(text);
+    if(!entries){errorsEl.textContent='The file does not look like FASTA.';return;}
+    for(const {name,seq} of entries){
+      const s=sanitizeSeq(seq);
+      if(!s.length){errorsEl.textContent=`Entry "${name}" has no letters.`;return;}
+      const bad=validateSeq(s); if(bad){errorsEl.textContent=`Entry "${name}" contains invalid character: ${bad}`;return;}
+      if (isNucleotideSeq(s)) {
+        if (!confirm(`Warning: Entry "${name}" appears to be a nucleotide sequence (DNA or RNA).\nDo you wish to upload/add it as a protein sequence?`)) {
+          continue;
+        }
+      }
+      renderItem(name,s);
+    }
+    fileInput.value="";
+  };
+  reader.readAsText(file);
+}
+
+form.onsubmit=e=>{
+  e.preventDefault();
+  modeManual.checked?handleManualAdd():handleFileImport();
+};
+importBtn.onclick=handleFileImport;
+
+/*────────────────────────────────────────────
+  COLLECT STATE FOR EXPORT
+────────────────────────────────────────────*/
+function collectStateForItem(box){
+  const hits=new Set(),sels=new Set(),muts=new Map();
+  box.querySelectorAll(".seq .aa:not(.pad)").forEach(span=>{
+    const idx=+span.dataset.idx;
+    if(span.classList.contains("hit")) hits.add(idx);
+    if(span.classList.contains("sel")) sels.add(idx);
+    if(span.classList.contains("mut")) muts.set(idx,span.dataset.aa);
+  });
+  return {hits,sels,muts};
+}
+
+/*────────────────────────────────────────────
+  INITIAL DEMO SEQUENCES & LEGEND
+────────────────────────────────────────────*/
+function renderLegendAndBoot(){
+  renderLegend();
+  // renderItem("WT","MNIIQVLLTVVTVIGFTKTCGRLDNLLDMLYNVISSVESI");
+  // renderItem("Scrambled","MTVNLSIDVTLGINVSLTIQFRVNLTIYVDLEISVGLKMC");
+  // renderItem("Ubiquitin (Homo sapiens)","MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGAKKRKKKSYTTPKKNKHKRKKVKLAVLKYYKVDENGKISRLRRECPSDECGAGVFMASHFDRHYCGKCCLTYCFNKPEDK")
+  attachReorderHandlersForAll();
+  updateExportButtons();
+}
+renderLegendAndBoot();
+
+document.getElementById('example-seq-link').addEventListener('click', function() {
+  document.getElementById('name').value = 'Ubiquitin (Homo sapiens)';
+  document.getElementById('seq').value =
+    'MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGGAKKRKKKSYTTPKKNKHKRKKVKLAVLKYYKVDENGKISRLRRECPSDECGAGVFMASHFDRHYCGKCCLTYCFNKPEDK';
+});
+
+const manualRadio = document.getElementById('modeManual');
+const fileRadio = document.getElementById('modeFile');
+const exampleBtn = document.getElementById('example-seq-link'); 
+
+function updateExampleBtnVisibility() {
+  if (manualRadio.checked) {
+    exampleBtn.style.display = "";
+  } else {
+    exampleBtn.style.display = "none";
+  }
+}
+
+// Listen for changes
+manualRadio.addEventListener('change', updateExampleBtnVisibility);
+fileRadio.addEventListener('change', updateExampleBtnVisibility);
+
+// On page load, make sure it's correct
+updateExampleBtnVisibility();
+
+/*────────────────────────────────────────────
+  PALETTE & SHOW-NUMS TOGGLE
+────────────────────────────────────────────*/
+paletteSel.onchange=rerenderAll;
+showNums.onchange=()=>list.querySelectorAll(".ruler").forEach(r=>r.style.display=showNums.checked?"":"none");
+bindSelectionHandlers();
+
+/*────────────────────────────────────────────
+  END IIFE
+────────────────────────────────────────────*/
+})();
+
+/*────────────────────────────────────────────
+  DARK-MODE PERSISTENCE
+────────────────────────────────────────────*/
+const themeToggle=document.getElementById("themeToggle");
+function applyTheme(t){document.documentElement.dataset.theme=t;localStorage.setItem("sv_theme",t);}
+themeToggle.onchange=()=>applyTheme(themeToggle.checked?"dark":"light");
+(function(){
+  const saved=localStorage.getItem("sv_theme");
+  if(saved){themeToggle.checked=saved==="dark";applyTheme(saved);}
+  else if(window.matchMedia("(prefers-color-scheme: dark)").matches){
+    themeToggle.checked=true;applyTheme("dark");
+  }
+})();
+</script>
+</body>
+</html>
