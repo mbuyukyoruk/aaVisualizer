@@ -283,7 +283,7 @@
       font-size: 13px !important;
     }
     input:checked + .slider:before {
-      transform: translateX(14px) !important;
+      transform: translateX(10px) !important;
     }
   }
 
@@ -449,6 +449,62 @@
     animation: seqfadein 0.8s cubic-bezier(.45,1.8,.64,1);
   }
 
+  @media (max-width: 520px) {
+    body {
+      font-size: 13px;
+    }
+    .tool-desc {
+      font-size: 13px !important;
+      line-height: 1.45 !important;
+      padding: 6px 8px !important;
+    }
+    .toolbar button,
+    .toolbar select,
+    .motifbar button,
+    .exportbar button,
+    .selbar button,
+    .form button,
+    .input-toggle label {
+      font-size: 12px !important;
+      padding: 7px 7px !important;
+      min-width: 0 !important;
+      border-radius: 8px !important;
+    }
+    .toolbar-row label,
+    .motifbar input[type=text],
+    .form input[type=text],
+    .form textarea {
+      font-size: 12px !important;
+    }
+    .seqhdr .title {
+      font-size: 14px !important;
+    }
+    /* Added rules for improved mobile layout */
+    .seqhdr .title {
+      font-size: 12px !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 1px !important;
+      word-break: break-all !important;
+    }
+    .seqhdr .title .len {
+      font-size: 11px !important;
+      font-weight: 500 !important;
+      margin-left: 0 !important;
+      color: var(--muted) !important;
+    }
+    .seqhdr {
+      padding: 4px 4px !important;
+      flex-wrap: wrap !important;
+      gap: 4px !important;
+    }
+    .actions button {
+      font-size: 11px !important;
+      padding: 5px 6px !important;
+      border-radius: 7px !important;
+      min-width: 0 !important;
+    }
+  }
   </style>
 </head>
 
@@ -1368,9 +1424,21 @@ function rebuildBoxRows(box, item) {
     seqRow.appendChild(row); box.appendChild(seqRow);
   }
 }
-window.addEventListener('resize', () => {
-  rerenderAll();
+
+// Throttle resize events and preserve scroll position to prevent page jumping on mobile
+let resizeTimeout;
+window.addEventListener('resize', function() {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(rerenderAll, 120);
 });
+
+// Patch rerenderAll to preserve scroll position (for mobile especially)
+const origRerenderAll = rerenderAll;
+window.rerenderAll = function() {
+  const scrollY = window.scrollY;
+  origRerenderAll.apply(this, arguments);
+  window.scrollTo(0, scrollY);
+};
 
 /*────────────────────────────────────────────
   EXPORT BUTTON ENABLE
