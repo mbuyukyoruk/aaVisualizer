@@ -1620,6 +1620,7 @@ function buildLegendSVG(palettesObj,palName,width,padX,startY){
 }
 
 function buildSVG(){
+  const LINE_WIDTH = 50;
   const padX=20,padY=20,labelW=160,chipW=16,chipH=20,gap=2,headerH=26,rulerH=12;
   const includeRuler=showNums.checked;
   const width=padX*2+labelW+(chipW+gap)*LINE_WIDTH;
