@@ -243,22 +243,48 @@
     top:0; left:0; right:0; bottom:0;
     background:#ccc; transition:.4s; border-radius:34px;
   }
-  .slider:before{
-    position:absolute; content:"☀️";
-    height:26px; width:26px;
-    left:4px; bottom:4px;
-    background:#fff; /* always white */
-    display:flex; align-items:center; justify-content:center;
-    font-size:16px; border-radius:50%; transition:.4s, background .4s;
-    color:#000;
+  .slider:before {
+    position: absolute;
+    content: "☀️";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    border-radius: 50%;
+    transition: .4s, background .4s;
+    color: #000;
   }
-  input:checked + .slider{ background:#0d9488 }
-  input:checked + .slider:before{
-    content:"🌙";
-    transform:translateX(26px);
-    /* still white so it never “bleeds” into the dark track */
-    background:#fff;
-    color:#065f46;
+  input:checked + .slider {
+    background: #0d9488;
+  }
+  input:checked + .slider:before {
+    content: "🌙";
+    /* Default for desktop */
+    transform: translateX(26px);
+    background: #fff;
+    color: #065f46;
+  }
+  /* Mobile: adjust knob distance for smaller toggle width */
+  @media (max-width: 520px) {
+    .toggle-switch {
+      width: 46px !important;
+      height: 28px !important;
+    }
+    .slider:before {
+      height: 20px !important;
+      width: 20px !important;
+      left: 4px !important;
+      bottom: 4px !important;
+      font-size: 13px !important;
+    }
+    input:checked + .slider:before {
+      transform: translateX(14px) !important;
+    }
   }
 
   /* ─────────────────── Export bar fixes */
