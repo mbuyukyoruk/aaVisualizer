@@ -1435,20 +1435,25 @@ window.addEventListener('resize', function() {
 // Improved scroll position fix: Only scroll to bottom if height increases and user was at bottom
 const origRerenderAll = rerenderAll;
 window.rerenderAll = function() {
+  // Record previous scroll and height
   const prevHeight = document.body.scrollHeight;
   const prevScrollY = window.scrollY;
   const windowHeight = window.innerHeight;
-  const wasAtBottom = (prevScrollY + windowHeight) >= (prevHeight - 4);
+
+  // Only consider auto-scroll if a sequence was just added
+  const listHadEmpty = !!document.querySelector('#list .empty');
 
   origRerenderAll.apply(this, arguments);
 
   requestAnimationFrame(() => {
     const newHeight = document.body.scrollHeight;
-    // Only scroll if new content *added* and user was at bottom before
-    if (wasAtBottom && newHeight > prevHeight) {
+    const wasAtBottom = (prevScrollY + windowHeight + 2) >= prevHeight; // a little buffer
+
+    // Only scroll if: (a) you were at bottom AND (b) a new sequence was added (not just rerender)
+    if (wasAtBottom && !listHadEmpty && newHeight > prevHeight && items.length > 0) {
       window.scrollTo(0, newHeight);
     }
-    // Otherwise, do not scroll. This prevents unwanted jumps!
+    // Otherwise, never scroll (prevents jumps)
   });
 };
 
