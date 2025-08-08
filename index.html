@@ -190,9 +190,9 @@
   .ruler,
   .seq {
     display: grid;
-    grid-template-columns: repeat(50, 1fr);
+    grid-template-columns: repeat(var(--slots-per-line, 50), 1fr);
     gap: 2px;
-    padding: 0 6px;        /* ← inset both by the same amount */
+    padding: 0 6px;
     box-sizing: border-box;
   }
 
@@ -1065,7 +1065,17 @@
 /*────────────────────────────────────────────
   CONSTANTS & UTILS
 ────────────────────────────────────────────*/
-const LINE_WIDTH = 50;
+
+const MIN_SLOT_WIDTH = 16; // px
+const MAX_SLOTS_PER_LINE = 50;
+function getSlotsPerLine(box) {
+  const boxWidth = box.clientWidth;
+  const slotsPerLine = Math.min(
+    MAX_SLOTS_PER_LINE,
+    Math.floor(boxWidth / MIN_SLOT_WIDTH)
+  );
+  return Math.max(1, slotsPerLine);
+}
 
 const typeClass = {A:"hydro",C:"hydro",D:"neg",E:"neg",F:"hydro",G:"gly",H:"arom",
                    I:"hydro",K:"pos",L:"hydro",M:"hydro",N:"polar",P:"pro",
@@ -1252,16 +1262,24 @@ function aaSpan(item,ch,idx){
 /*────────────────────────────────────────────
   RULER LINE (grid)
 ────────────────────────────────────────────*/
-function buildRulerLine(start,endAbs){
-  const r=document.createElement("div");r.className="ruler";
-  for(let i=start;i<=endAbs;i++){
-    const tick=document.createElement("span");tick.className="tick";
-    if(i%10===0){tick.classList.add("n10");tick.innerHTML=`<strong>${i}</strong>`;}
-    else if(i===1||i%5===0){if(i===1)tick.classList.add("n1");tick.textContent=i;}
+function buildRulerLine(start, endAbs, slotsPerLine) {
+  const r = document.createElement("div"); r.className = "ruler";
+  for (let i = start; i <= endAbs; i++) {
+    const tick = document.createElement("span"); tick.className = "tick";
+    if (i % 10 === 0) {
+      tick.classList.add("n10"); tick.innerHTML = `<strong>${i}</strong>`;
+    }
+    else if (i === 1 || i % 5 === 0) {
+      if (i === 1) tick.classList.add("n1");
+      tick.textContent = i;
+    }
     r.appendChild(tick);
   }
-  const rendered=Math.max(0,endAbs-start+1), pads=Math.max(0,LINE_WIDTH-rendered);
-  for(let k=0;k<pads;k++){const t=document.createElement("span");t.className="tick";r.appendChild(t);}
+  const rendered = Math.max(0, endAbs - start + 1), pads = Math.max(0, slotsPerLine - rendered);
+  for (let k = 0; k < pads; k++) {
+    const t = document.createElement("span"); t.className = "tick"; r.appendChild(t);
+  }
+  r.style.display = showNums.checked ? "" : "none";
   return r;
 }
 
@@ -1276,39 +1294,57 @@ function getRenderedSeq(item){
   return arr.join("");
 }
 
-function rebuildBoxRows(box,item){
-  const seq=getRenderedSeq(item);
-  box.querySelectorAll(".ruler,.seqrow").forEach(n=>n.remove());
+function rebuildBoxRows(box, item) {
+  const seq = getRenderedSeq(item);
+  box.querySelectorAll(".ruler,.seqrow").forEach(n => n.remove());
 
-  const lenSpan=box.querySelector(".title .len");
-  if(lenSpan){const mw=(calcMW(seq.replace(/-/g,""))/1000).toFixed(2);
-              lenSpan.textContent=`(${seq.length} aa, ${mw} kDa)`;}
+  const lenSpan = box.querySelector(".title .len");
+  if (lenSpan) {
+    const mw = (calcMW(seq.replace(/-/g, "")) / 1000).toFixed(2);
+    lenSpan.textContent = `(${seq.length} aa, ${mw} kDa)`;
+  }
 
-  let idx=1;
-  for(let pos=0;pos<seq.length;pos+=LINE_WIDTH){
-    const realEnd=Math.min(seq.length,pos+LINE_WIDTH);
-    const r=buildRulerLine(idx,realEnd); r.style.display=showNums.checked?"":"none";
+  // Dynamically calculate slots per line based on box width
+  const slotsPerLine = getSlotsPerLine(box);
+  box.style.setProperty('--slots-per-line', slotsPerLine);
+  let idx = 1;
+  for (let pos = 0; pos < seq.length; pos += slotsPerLine) {
+    const realEnd = Math.min(seq.length, pos + slotsPerLine);
+    const r = buildRulerLine(idx, realEnd, slotsPerLine);
     box.appendChild(r);
 
-    const seqRow=document.createElement("div");seqRow.className="seqrow";
-    const row=document.createElement("div");row.className="seq";
-    let used=0;
-    for(let i=pos;i<realEnd;i++){row.appendChild(aaSpan(item,seq[i],idx++));used++;}
-    for(let k=used;k<LINE_WIDTH;k++){
-      const pad=document.createElement("span");pad.className="aa pad";pad.textContent="•";row.appendChild(pad);
+    const seqRow = document.createElement("div"); seqRow.className = "seqrow";
+    const row = document.createElement("div"); row.className = "seq";
+    let used = 0;
+    for (let i = pos; i < realEnd; i++) {
+      row.appendChild(aaSpan(item, seq[i], idx++));
+      used++;
     }
-    seqRow.appendChild(row);box.appendChild(seqRow);
-    bindSelectionHandlersForRow(row); bindMutationHandlerForRow(row,item.id);
+    for (let k = used; k < slotsPerLine; k++) {
+      const pad = document.createElement("span");
+      pad.className = "aa pad"; pad.textContent = "•";
+      row.appendChild(pad);
+    }
+    seqRow.appendChild(row); box.appendChild(seqRow);
+    bindSelectionHandlersForRow(row); bindMutationHandlerForRow(row, item.id);
   }
 
-  if(seq.length===0){
-    const r=buildRulerLine(1,0);r.style.display=showNums.checked?"":"none";box.appendChild(r);
-    const seqRow=document.createElement("div");seqRow.className="seqrow";
-    const row=document.createElement("div");row.className="seq";
-    for(let k=0;k<LINE_WIDTH;k++){const pad=document.createElement("span");pad.className="aa pad";pad.textContent="•";row.appendChild(pad);}
-    seqRow.appendChild(row);box.appendChild(seqRow);
+  if (seq.length === 0) {
+    const r = buildRulerLine(1, 0, getSlotsPerLine(box));
+    box.appendChild(r);
+    const seqRow = document.createElement("div"); seqRow.className = "seqrow";
+    const row = document.createElement("div"); row.className = "seq";
+    for (let k = 0; k < getSlotsPerLine(box); k++) {
+      const pad = document.createElement("span");
+      pad.className = "aa pad"; pad.textContent = "•";
+      row.appendChild(pad);
+    }
+    seqRow.appendChild(row); box.appendChild(seqRow);
   }
 }
+window.addEventListener('resize', () => {
+  rerenderAll();
+});
 
 /*────────────────────────────────────────────
   EXPORT BUTTON ENABLE
@@ -1872,7 +1908,7 @@ document.getElementById('example-seq-link').addEventListener('click', function()
 
 const manualRadio = document.getElementById('modeManual');
 const fileRadio = document.getElementById('modeFile');
-const exampleBtn = document.getElementById('example-seq-link'); 
+const exampleBtn = document.getElementById('example-seq-link');
 
 function updateExampleBtnVisibility() {
   if (manualRadio.checked) {
