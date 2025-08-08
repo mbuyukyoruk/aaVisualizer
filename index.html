@@ -1432,21 +1432,23 @@ window.addEventListener('resize', function() {
   resizeTimeout = setTimeout(rerenderAll, 120);
 });
 
-// Patch rerenderAll to preserve scroll position (for mobile especially)
+// Robust scroll position fix for mobile jumpiness when scrolling to the very bottom
+function isAtPageBottom(thresholdPx = 8) {
+  // True if scrolled to within thresholdPx pixels of bottom
+  return (window.innerHeight + Math.ceil(window.scrollY)) >= (document.body.scrollHeight - thresholdPx);
+}
 const origRerenderAll = rerenderAll;
 window.rerenderAll = function() {
-  // Calculate if user was at the bottom *before* rerender
-  const scrollY = window.scrollY;
-  const atBottom = (window.innerHeight + Math.ceil(window.scrollY)) >= (document.body.scrollHeight - 2);
-
+  // 1. Check if user is at (or near) bottom before rerender
+  const wasAtBottom = isAtPageBottom();
+  const prevScrollY = window.scrollY;
+  // 2. Rerender
   origRerenderAll.apply(this, arguments);
-
-  if (atBottom) {
-    // If user was at bottom, stay at the new bottom (no jump!)
+  // 3. Restore scroll: stay at bottom if previously at bottom, else old position
+  if (wasAtBottom) {
     window.scrollTo(0, document.body.scrollHeight);
   } else {
-    // Otherwise, restore their previous scroll position
-    window.scrollTo(0, scrollY);
+    window.scrollTo(0, prevScrollY);
   }
 };
 
