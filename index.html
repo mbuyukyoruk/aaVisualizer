@@ -1432,34 +1432,24 @@ window.addEventListener('resize', function() {
   resizeTimeout = setTimeout(rerenderAll, 120);
 });
 
-// Robust scroll position fix for mobile jumpiness when scrolling to the very bottom
-function isAtPageBottom(thresholdPx = 8) {
-  // True if scrolled to within thresholdPx pixels of bottom
-  return (window.innerHeight + Math.ceil(window.scrollY)) >= (document.body.scrollHeight - thresholdPx);
-}
+// Improved scroll position fix: Only scroll to bottom if height increases and user was at bottom
 const origRerenderAll = rerenderAll;
 window.rerenderAll = function() {
-  // 1. Check if user is at (or near) bottom before rerender
-  const wasAtBottom = isAtPageBottom();
+  const prevHeight = document.body.scrollHeight;
   const prevScrollY = window.scrollY;
+  const windowHeight = window.innerHeight;
+  const wasAtBottom = (prevScrollY + windowHeight) >= (prevHeight - 4);
 
-  // 2. Rerender as before
   origRerenderAll.apply(this, arguments);
 
-  // 3. Restore scroll after DOM/layout is fully updated (next two frames)
-  if (wasAtBottom) {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.scrollTo(0, document.body.scrollHeight);
-      });
-    });
-  } else {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        window.scrollTo(0, prevScrollY);
-      });
-    });
-  }
+  requestAnimationFrame(() => {
+    const newHeight = document.body.scrollHeight;
+    // Only scroll if new content *added* and user was at bottom before
+    if (wasAtBottom && newHeight > prevHeight) {
+      window.scrollTo(0, newHeight);
+    }
+    // Otherwise, do not scroll. This prevents unwanted jumps!
+  });
 };
 
 /*────────────────────────────────────────────
